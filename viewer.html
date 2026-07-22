@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
+    >
+    <title>3D-планировка дома</title>
+
+    <link rel="icon" type="image/png" href="./images/icon.png">
+    <style>
+        * { box-sizing: border-box; }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+            background: #e6edf6;
+        }
+
+        #app {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        #viewer {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 50% 35%, #f8fbff 0, #dce7f2 58%, #c8d5e3 100%);
+        }
+
+        #viewer canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            outline: none;
+        }
+
+        .top-panel {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            z-index: 10;
+            width: min(390px, calc(100% - 48px));
+            padding: 19px 22px;
+            color: #ffffff;
+            background: linear-gradient(135deg, rgba(13, 29, 47, .91), rgba(20, 48, 72, .83));
+            border: 1px solid rgba(255, 255, 255, .18);
+            border-radius: 20px;
+            backdrop-filter: blur(18px);
+            box-shadow: 0 18px 45px rgba(32, 60, 89, .28);
+        }
+
+        .notice-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: grid;
+            width: 28px;
+            min-height: 28px;
+            padding: 0;
+            color: rgba(255,255,255,.75);
+            background: transparent;
+            border: 0;
+            border-radius: 50%;
+            font-size: 20px;
+            font-weight: 400;
+            line-height: 1;
+            place-items: center;
+        }
+
+        .notice-close:hover { color: #fff; background: rgba(255,255,255,.14); }
+        .dismissed { display: none !important; }
+
+        .top-panel h1 {
+            margin: 0 0 8px;
+            font-size: 23px;
+            letter-spacing: -.035em;
+            font-weight: 700;
+        }
+
+        .top-panel p {
+            margin: 0;
+            color: rgba(255, 255, 255, 0.72);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .controls-panel {
+            position: absolute;
+            right: 24px;
+            bottom: 24px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+            max-width: calc(100% - 48px);
+            padding: 9px;
+            background: rgba(12, 29, 47, .86);
+            border: 1px solid rgba(255, 255, 255, .16);
+            border-radius: 18px;
+            backdrop-filter: blur(18px);
+            box-shadow: 0 15px 36px rgba(32, 60, 89, .22);
+        }
+
+        .upload-panel {
+            position: absolute;
+            z-index: 15;
+            top: 190px;
+            left: 24px;
+            width: min(390px, calc(100% - 48px));
+            padding: 14px;
+            color: #fff;
+            background: rgba(13, 34, 54, .88);
+            border: 1px solid rgba(255,255,255,.16);
+            border-radius: 16px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 14px 34px rgba(32,60,89,.22);
+        }
+        .upload-dropzone { padding: 13px; border: 1px dashed rgba(223,245,238,.6); border-radius: 12px; text-align: center; }
+        .upload-dropzone.dragging { background: rgba(223,245,238,.14); border-color: #dff5ee; }
+        .upload-dropzone p, .upload-status { margin: 8px 0 0; color: rgba(255,255,255,.75); font-size: 12px; line-height: 1.4; }
+        .upload-actions { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+        .upload-actions button { min-height: 36px; }
+        .upload-progress { width: 100%; height: 5px; margin-top: 10px; overflow: hidden; background: rgba(255,255,255,.16); border-radius: 10px; }
+        .upload-progress > span { display: block; width: 0; height: 100%; background: #9ee3ca; transition: width .2s ease; }
+        .upload-progress.indeterminate > span { width: 40%; animation: upload-progress 1.1s ease-in-out infinite; }
+        @keyframes upload-progress { 0% { transform: translateX(-120%); } 100% { transform: translateX(310%); } }
+
+        .menu-wrap { position: absolute; top: 24px; right: 24px; z-index: 30; }
+        .menu-button { min-height: 48px; padding: 0 17px; background: rgba(13,34,54,.86); border-color: rgba(255,255,255,.18); border-radius: 15px; backdrop-filter: blur(16px); box-shadow: 0 12px 30px rgba(32,60,89,.2); }
+        .contacts-menu { position: absolute; top: calc(100% + 10px); right: 0; width: min(290px, calc(100vw - 48px)); padding: 18px; color: #fff; background: rgba(13,34,54,.96); border: 1px solid rgba(255,255,255,.16); border-radius: 17px; box-shadow: 0 18px 45px rgba(20,48,72,.28); backdrop-filter: blur(18px); opacity: 0; visibility: hidden; transform: translateY(-6px); transition: opacity .18s ease, transform .18s ease, visibility .18s ease; }
+        .contacts-menu.open { opacity: 1; visibility: visible; transform: translateY(0); }
+        .contacts-menu h2 { margin: 0 0 5px; font-size: 17px; }
+        .contacts-menu p { margin: 0 0 14px; color: rgba(255,255,255,.66); font-size: 12px; line-height: 1.45; }
+        .contacts-menu a { display: block; padding: 10px 0; color: #dff5ee; border-top: 1px solid rgba(255,255,255,.1); font-size: 14px; font-weight: 600; text-decoration: none; }
+        .contacts-menu a:hover { color: #9ee3ca; }
+
+        button {
+            min-height: 44px;
+            padding: 0 16px;
+            color: #ffffff;
+            background: rgba(255, 255, 255, .09);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        button:hover { background: rgba(255, 255, 255, .2); transform: translateY(-1px); }
+        button:active { transform: scale(0.96); }
+        button.active {
+            color: #15304a;
+            background: #dff5ee;
+            border-color: #dff5ee;
+        }
+
+        #loading-screen {
+            position: absolute;
+            inset: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 14px;
+            color: #ffffff;
+            background: radial-gradient(circle at center, #244a67, #102238 70%);
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+
+        #loading-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        html.preview .top-panel,
+        html.preview .menu-wrap,
+        html.preview .controls-panel,
+        html.preview .upload-panel,
+        html.preview .help,
+        html.preview .room-card { display: none; }
+
+        .loader {
+            width: 54px;
+            height: 54px;
+            border: 4px solid rgba(255, 255, 255, 0.18);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: rotate 0.8s linear infinite;
+        }
+
+        #loading-text {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        #error-message {
+            display: none;
+            max-width: 500px;
+            padding: 20px;
+            margin: 20px;
+            color: #ffffff;
+            background: #9f2929;
+            border-radius: 12px;
+            line-height: 1.5;
+            text-align: center;
+        }
+
+        .help {
+            position: absolute;
+            left: 24px;
+            bottom: 24px;
+            z-index: 10;
+            padding: 10px 42px 10px 14px;
+            color: rgba(255, 255, 255, 0.78);
+            background: rgba(13, 34, 54, .78);
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 14px;
+            backdrop-filter: blur(10px);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .room-card {
+            position: absolute;
+            z-index: 20;
+            display: none;
+            width: 260px;
+            padding: 16px;
+            color: #ffffff;
+            background: rgba(13, 34, 54, .94);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 14px;
+            pointer-events: none;
+            transform: translate(-50%, calc(-100% - 14px));
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+        }
+
+        .room-card.visible { display: block; }
+
+        .room-card h2 {
+            margin: 0 0 6px;
+            font-size: 17px;
+        }
+
+        .room-card p {
+            margin: 0;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        @keyframes rotate {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 700px) {
+            .top-panel {
+                top: 12px;
+                left: 12px;
+                width: calc(100% - 100px);
+                min-height: 48px;
+                padding: 13px 16px;
+                border-radius: 15px;
+            }
+
+            .top-panel h1 {
+                margin: 0;
+                font-size: 16px;
+                line-height: 1.25;
+            }
+
+            .top-panel p { display: none; }
+            .help { display: none; }
+
+            .menu-wrap { top: 12px; right: 12px; }
+
+            .menu-button {
+                min-height: 48px;
+                padding: 0 12px;
+                border-radius: 14px;
+                font-size: 12px;
+            }
+
+            .contacts-menu {
+                width: min(290px, calc(100vw - 24px));
+                padding: 15px;
+            }
+
+            .controls-panel {
+                right: 12px;
+                bottom: 12px;
+                left: 12px;
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 6px;
+                padding: 7px;
+                border-radius: 15px;
+                max-width: none;
+            }
+            .upload-panel { top: 82px; left: 12px; width: calc(100% - 24px); padding: 10px; }
+
+            .controls-panel button {
+                min-width: 0;
+                min-height: 38px;
+                padding: 5px 6px;
+                border-radius: 9px;
+                font-size: 11px;
+                line-height: 1.15;
+            }
+
+            .room-card {
+                width: min(260px, calc(100% - 24px));
+                padding: 13px;
+                border-radius: 12px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div id="app">
+    <div id="viewer"></div>
+
+    <div class="menu-wrap">
+        <button id="contacts-button" class="menu-button" aria-expanded="false" aria-controls="contacts-menu">☰ Меню</button>
+        <section id="contacts-menu" class="contacts-menu" aria-label="Контакты">
+            <h2>Связаться со мной</h2>
+            <p>Укажите здесь удобные для вас способы связи.</p>
+            <a href="tel:+70000000000">Телефон: +7 (000) 000-00-00</a>
+            <a href="mailto:hello@example.com">Email: hello@example.com</a>
+            <a href="#" onclick="return false;">Telegram: @your_username</a>
+        </section>
+    </div>
+
+    <div class="top-panel">
+        <button class="notice-close" type="button" aria-label="Закрыть сообщение">×</button>
+        <h1>Проект частного дома</h1>
+        <p>
+            Интерактивная 3D-планировка.
+            Поворачивайте модель, приближайте её и переключайте режимы просмотра.
+        </p>
+    </div>
+
+    <section class="upload-panel" aria-label="Загрузка 3D-модели">
+        <div id="upload-dropzone" class="upload-dropzone">
+            <strong>Загрузить модель</strong>
+            <p>Перетащите IFC или GLB сюда</p>
+            <div class="upload-actions">
+                <button id="upload-button" type="button">Выбрать файл</button>
+                <button id="upload-cancel" type="button" hidden>Отменить</button>
+            </div>
+            <input id="model-file-input" type="file" accept=".ifc,.glb,.gltf,.pla,.pln" hidden>
+        </div>
+        <div id="upload-file-info" class="upload-status" aria-live="polite">Поддерживаются IFC и GLB. Одиночный GLTF поддерживается только со встроенными ресурсами.</div>
+        <div class="upload-progress" id="upload-progress" hidden><span></span></div>
+        <div id="upload-status" class="upload-status" aria-live="polite"></div>
+    </section>
+
+    <div class="help">
+        <button class="notice-close" type="button" aria-label="Закрыть подсказку">×</button>
+        Левая кнопка мыши — вращение<br>
+        Колесо — приближение<br>
+        Правая кнопка — перемещение
+    </div>
+
+    <div class="controls-panel">
+        <button id="home-button">Общий вид</button>
+        <button id="top-button">Вид сверху</button>
+        <button id="walls-button" class="active">Стены</button>
+        <button id="rotate-button">Автовращение</button>
+        <button id="fullscreen-button">На весь экран</button>
+    </div>
+
+    <div id="room-card" class="room-card">
+        <h2 id="room-name">Помещение</h2>
+        <p id="room-description"></p>
+    </div>
+
+    <div id="loading-screen">
+        <div class="loader"></div>
+        <div id="loading-text">Загрузка модели: 0%</div>
+        <div id="error-message"></div>
+    </div>
+</div>
+
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+    }
+}
+</script>
+
+<script type="module" src="./scripts/app.js"></script>
+<!-- Legacy inline script retained as a non-executed reference.
+<script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+    import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+    import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+
+    const viewer = document.getElementById("viewer");
+    const loadingScreen = document.getElementById("loading-screen");
+    const loadingText = document.getElementById("loading-text");
+    const errorMessage = document.getElementById("error-message");
+
+    const homeButton = document.getElementById("home-button");
+    const topButton = document.getElementById("top-button");
+    const wallsButton = document.getElementById("walls-button");
+    const rotateButton = document.getElementById("rotate-button");
+    const fullscreenButton = document.getElementById("fullscreen-button");
+
+    const roomCard = document.getElementById("room-card");
+    const roomNameElement = document.getElementById("room-name");
+    const roomDescriptionElement = document.getElementById("room-description");
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xdedede);
+    scene.fog = new THREE.Fog(0xdedede, 35, 100);
+
+    const camera = new THREE.PerspectiveCamera(
+        45,
+        window.innerWidth / window.innerHeight,
+        0.05,
+        500
+    );
+
+    camera.position.set(14, 12, 18);
+
+    const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: false,
+        powerPreference: "high-performance"
+    });
+
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(viewer.clientWidth, viewer.clientHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    viewer.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.enablePan = true;
+    controls.enableZoom = true;
+    controls.enableRotate = true;
+    controls.minDistance = 2;
+    controls.maxDistance = 60;
+    controls.minPolarAngle = 0.08;
+    controls.maxPolarAngle = Math.PI / 2.02;
+    controls.target.set(0, 1.5, 0);
+
+    const hemisphereLight = new THREE.HemisphereLight(
+        0xffffff,
+        0x555555,
+        2.1
+    );
+    scene.add(hemisphereLight);
+
+    const mainLight = new THREE.DirectionalLight(0xffffff, 3);
+    mainLight.position.set(12, 20, 10);
+    mainLight.castShadow = true;
+    mainLight.shadow.mapSize.set(2048, 2048);
+    mainLight.shadow.camera.left = -30;
+    mainLight.shadow.camera.right = 30;
+    mainLight.shadow.camera.top = 30;
+    mainLight.shadow.camera.bottom = -30;
+    mainLight.shadow.bias = -0.0001;
+    scene.add(mainLight);
+
+    const fillLight = new THREE.DirectionalLight(0xbfd6ff, 1);
+    fillLight.position.set(-10, 8, -10);
+    scene.add(fillLight);
+
+    const groundGeometry = new THREE.PlaneGeometry(200, 200);
+    const groundMaterial = new THREE.MeshStandardMaterial({
+        color: 0xc8c8c8,
+        roughness: 0.95,
+        metalness: 0
+    });
+
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.02;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    const grid = new THREE.GridHelper(
+        100,
+        100,
+        0x999999,
+        0xbbbbbb
+    );
+
+    grid.position.y = 0.005;
+    grid.material.opacity = 0.23;
+    grid.material.transparent = true;
+    scene.add(grid);
+
+    let houseModel = null;
+    let originalCameraPosition = new THREE.Vector3();
+    let originalTarget = new THREE.Vector3();
+
+    let wallsVisible = true;
+    let autoRotateEnabled = false;
+
+    const selectableObjects = [];
+
+    const loadingManager = new THREE.LoadingManager();
+
+    loadingManager.onProgress = (url, loaded, total) => {
+        const percent = Math.round(loaded / total * 100);
+        loadingText.textContent = `Загрузка модели: ${percent}%`;
+    };
+
+    loadingManager.onLoad = () => {
+        loadingScreen.classList.add("hidden");
+    };
+
+    loadingManager.onError = (url) => {
+        showError(`Не удалось загрузить файл модели: ${url}`);
+    };
+
+    const dracoLoader = new DRACOLoader(loadingManager);
+
+    dracoLoader.setDecoderPath(
+        "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/libs/draco/"
+    );
+
+    const gltfLoader = new GLTFLoader(loadingManager);
+    gltfLoader.setDRACOLoader(dracoLoader);
+
+    loadHouseModel();
+
+    async function loadHouseModel() {
+        try {
+            const gltf = await gltfLoader.loadAsync("./models/house.glb");
+
+            houseModel = gltf.scene;
+
+            prepareModel(houseModel);
+            centerAndFitModel(houseModel);
+
+            scene.add(houseModel);
+
+            if (gltf.animations.length > 0) {
+                startModelAnimations(
+                    houseModel,
+                    gltf.animations
+                );
+            }
+        } catch (error) {
+            console.error(error);
+
+            showError(
+                "Модель house.glb не найдена. " +
+                "Положите её в папку models."
+            );
+        }
+    }
+
+    function prepareModel(model) {
+        model.traverse((object) => {
+            if (!object.isMesh) return;
+
+            object.castShadow = true;
+            object.receiveShadow = true;
+            selectableObjects.push(object);
+
+            if (object.material) {
+                object.material.side = THREE.DoubleSide;
+
+                if (object.material.map) {
+                    object.material.map.colorSpace =
+                        THREE.SRGBColorSpace;
+                }
+            }
+        });
+    }
+
+    function centerAndFitModel(model) {
+        const box = new THREE.Box3().setFromObject(model);
+
+        if (box.isEmpty()) return;
+
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+
+        model.position.x -= center.x;
+        model.position.z -= center.z;
+        model.position.y -= box.min.y;
+
+        const maxSize = Math.max(size.x, size.y, size.z);
+        const distance = maxSize * 1.65;
+
+        camera.near = Math.max(maxSize / 1000, 0.01);
+        camera.far = maxSize * 100;
+        camera.updateProjectionMatrix();
+
+        camera.position.set(
+            distance,
+            distance * 0.72,
+            distance
+        );
+
+        controls.target.set(
+            0,
+            size.y * 0.35,
+            0
+        );
+
+        controls.minDistance = maxSize * 0.15;
+        controls.maxDistance = maxSize * 8;
+        controls.update();
+
+        originalCameraPosition.copy(camera.position);
+        originalTarget.copy(controls.target);
+    }
+
+    const clock = new THREE.Clock();
+    let animationMixer = null;
+
+    function startModelAnimations(model, animations) {
+        animationMixer = new THREE.AnimationMixer(model);
+
+        animations.forEach((clip) => {
+            animationMixer.clipAction(clip).play();
+        });
+    }
+
+    let cameraAnimation = null;
+
+    function animateCamera(
+        newPosition,
+        newTarget,
+        duration = 900
+    ) {
+        cameraAnimation = {
+            startTime: performance.now(),
+            duration,
+            startPosition: camera.position.clone(),
+            endPosition: newPosition.clone(),
+            startTarget: controls.target.clone(),
+            endTarget: newTarget.clone()
+        };
+    }
+
+    function updateCameraAnimation() {
+        if (!cameraAnimation) return;
+
+        const elapsed =
+            performance.now() -
+            cameraAnimation.startTime;
+
+        const progress = Math.min(
+            elapsed / cameraAnimation.duration,
+            1
+        );
+
+        const eased =
+            1 - Math.pow(1 - progress, 3);
+
+        camera.position.lerpVectors(
+            cameraAnimation.startPosition,
+            cameraAnimation.endPosition,
+            eased
+        );
+
+        controls.target.lerpVectors(
+            cameraAnimation.startTarget,
+            cameraAnimation.endTarget,
+            eased
+        );
+
+        if (progress >= 1) {
+            cameraAnimation = null;
+        }
+    }
+
+    homeButton.addEventListener("click", () => {
+        animateCamera(
+            originalCameraPosition,
+            originalTarget
+        );
+    });
+
+    topButton.addEventListener("click", () => {
+        if (!houseModel) return;
+
+        const box = new THREE.Box3().setFromObject(houseModel);
+        const size = box.getSize(new THREE.Vector3());
+        const maxSize = Math.max(size.x, size.z);
+
+        animateCamera(
+            new THREE.Vector3(
+                0.001,
+                maxSize * 1.7,
+                0.001
+            ),
+            new THREE.Vector3(
+                0,
+                0,
+                0
+            )
+        );
+    });
+
+    rotateButton.addEventListener("click", () => {
+        autoRotateEnabled = !autoRotateEnabled;
+        controls.autoRotate = autoRotateEnabled;
+        controls.autoRotateSpeed = 1;
+
+        rotateButton.classList.toggle(
+            "active",
+            autoRotateEnabled
+        );
+    });
+
+    wallsButton.addEventListener("click", () => {
+        wallsVisible = !wallsVisible;
+        toggleWalls(wallsVisible);
+
+        wallsButton.textContent =
+            wallsVisible
+                ? "Стены"
+                : "Показать стены";
+
+        wallsButton.classList.toggle(
+            "active",
+            wallsVisible
+        );
+    });
+
+    fullscreenButton.addEventListener("click", async () => {
+        try {
+            if (!document.fullscreenElement) {
+                await document.documentElement.requestFullscreen();
+            } else {
+                await document.exitFullscreen();
+            }
+        } catch (error) {
+            console.error(
+                "Не удалось включить полноэкранный режим",
+                error
+            );
+        }
+    });
+
+    function toggleWalls(visible) {
+        if (!houseModel) return;
+
+        houseModel.traverse((object) => {
+            if (!object.isMesh) return;
+
+            const name = object.name.toLowerCase();
+
+            const isWall =
+                name.includes("wall") ||
+                name.includes("стена");
+
+            if (isWall) {
+                object.visible = visible;
+            }
+        });
+    }
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+
+    renderer.domElement.addEventListener(
+        "pointerdown",
+        handlePointerDown
+    );
+
+    function handlePointerDown(event) {
+        const rect =
+            renderer.domElement.getBoundingClientRect();
+
+        pointer.x =
+            ((event.clientX - rect.left) / rect.width) * 2 - 1;
+
+        pointer.y =
+            -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(
+            pointer,
+            camera
+        );
+
+        const intersections =
+            raycaster.intersectObjects(
+                selectableObjects,
+                false
+            );
+
+        if (intersections.length === 0) {
+            hideRoomCard();
+            return;
+        }
+
+        const selectedObject =
+            intersections[0].object;
+
+        showObjectInformation(
+            selectedObject,
+            event.clientX,
+            event.clientY
+        );
+    }
+
+    function showObjectInformation(
+        object,
+        screenX,
+        screenY
+    ) {
+        const roomData = getRoomData(object);
+
+        if (!roomData) {
+            hideRoomCard();
+            return;
+        }
+
+        roomNameElement.textContent =
+            roomData.title;
+
+        roomDescriptionElement.textContent =
+            roomData.description;
+
+        roomCard.style.left = `${screenX}px`;
+        roomCard.style.top = `${screenY}px`;
+        roomCard.classList.add("visible");
+    }
+
+    function hideRoomCard() {
+        roomCard.classList.remove("visible");
+    }
+
+    function getRoomData(object) {
+        const data = object.userData;
+
+        if (
+            data.title ||
+            data.area ||
+            data.description
+        ) {
+            const descriptionParts = [];
+
+            if (data.area) {
+                descriptionParts.push(
+                    `Площадь: ${data.area}`
+                );
+            }
+
+            if (data.description) {
+                descriptionParts.push(
+                    data.description
+                );
+            }
+
+            return {
+                title:
+                    data.title ||
+                    object.name ||
+                    "Помещение",
+
+                description:
+                    descriptionParts.join(". ")
+            };
+        }
+
+        const roomName =
+            object.name.toLowerCase();
+
+        const rooms = {
+            kitchen: {
+                title: "Кухня-гостиная",
+                description: "Площадь: 28,4 м²"
+            },
+
+            bedroom: {
+                title: "Спальня",
+                description: "Площадь: 15,2 м²"
+            },
+
+            bathroom: {
+                title: "Санузел",
+                description: "Площадь: 5,8 м²"
+            },
+
+            hall: {
+                title: "Прихожая",
+                description: "Площадь: 8,1 м²"
+            },
+
+            terrace: {
+                title: "Терраса",
+                description: "Площадь: 18,5 м²"
+            }
+        };
+
+        for (const key in rooms) {
+            if (roomName.includes(key)) {
+                return rooms[key];
+            }
+        }
+
+        return null;
+    }
+
+    window.addEventListener("resize", resizeRenderer);
+
+    function resizeRenderer() {
+        const width = viewer.clientWidth;
+        const height = viewer.clientHeight;
+
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(
+            width,
+            height,
+            false
+        );
+    }
+
+    function showError(message) {
+        loadingText.style.display = "none";
+        document.querySelector(".loader").style.display = "none";
+
+        errorMessage.textContent = message;
+        errorMessage.style.display = "block";
+    }
+
+    function render() {
+        requestAnimationFrame(render);
+
+        const delta = clock.getDelta();
+
+        if (animationMixer) {
+            animationMixer.update(delta);
+        }
+
+        updateCameraAnimation();
+        controls.update();
+
+        renderer.render(
+            scene,
+            camera
+        );
+    }
+
+    render();
+</script>
+-->
+</body>
+</html>

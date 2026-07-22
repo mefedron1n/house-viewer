@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Комната — проект дома</title>
+    <link rel="icon" type="image/png" href="./images/icon.png">
+    <style>
+        :root { color-scheme: dark; }
+        * { box-sizing: border-box; }
+        body { min-width: 320px; margin: 0; color: #fff; background: radial-gradient(circle at top, #244a67, #102238 70%); font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+        main { width: min(1120px, calc(100% - 48px)); margin: 0 auto; padding: 42px 0 56px; }
+        .back { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 28px; color: #dff5ee; font-weight: 700; text-decoration: none; }
+        .back:hover { color: #fff; }
+        h1 { margin: 0; font-size: clamp(30px, 5vw, 46px); letter-spacing: -.045em; }
+        .intro { max-width: 620px; margin: 10px 0 32px; color: #c2d0dc; line-height: 1.55; }
+        h2 { margin: 34px 0 14px; font-size: 22px; letter-spacing: -.025em; }
+        .media-grid { display: grid; grid-template-columns: minmax(260px, .85fr) minmax(0, 1.6fr); gap: 18px; }
+        .media-card, .render-card { padding: 0; overflow: hidden; color: inherit; background: #18354e; border: 1px solid rgba(255,255,255,.16); border-radius: 18px; cursor: zoom-in; text-align: left; transition: transform .2s ease, border-color .2s ease; }
+        .media-card:hover, .render-card:hover { transform: translateY(-3px); border-color: rgba(223,245,238,.7); }
+        .media-card img, .render-card img { display: block; width: 100%; background: #284b65; object-fit: cover; }
+        .media-card img { aspect-ratio: 4 / 3; }
+        .card-label { display: block; padding: 13px 15px 15px; font-size: 15px; font-weight: 700; }
+        .renders-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+        .renders-head p { margin: 0; color: #a8bfce; font-size: 13px; }
+        .render-track { display: flex; gap: 14px; padding: 2px 2px 14px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-color: #8fb6b0 transparent; }
+        .render-track:focus-visible { outline: 2px solid #dff5ee; outline-offset: 4px; }
+        .render-card { flex: 0 0 min(75%, 470px); scroll-snap-align: start; }
+        .render-card img { aspect-ratio: 16 / 10; }
+        .model-placeholder { display: grid; min-height: 380px; place-items: center; padding: 24px; color: #a8bfce; text-align: center; background: linear-gradient(135deg, rgba(78,119,145,.34), rgba(15,36,55,.75)); border: 1px dashed rgba(223,245,238,.42); border-radius: 20px; }
+        .model-placeholder strong { display: block; margin-bottom: 8px; color: #dff5ee; font-size: 20px; }
+        dialog { width: min(1100px, calc(100% - 32px)); max-width: none; max-height: min(92vh, 900px); padding: 0; overflow: hidden; background: #0b1928; border: 1px solid rgba(255,255,255,.25); border-radius: 18px; box-shadow: 0 24px 80px rgba(0,0,0,.6); }
+        dialog::backdrop { background: rgba(3, 11, 20, .84); backdrop-filter: blur(4px); }
+        .modal-image { display: block; max-width: 100%; max-height: calc(92vh - 62px); margin: 0 auto; object-fit: contain; }
+        .modal-caption { padding: 15px 62px 16px 18px; color: #dbe8f3; font-weight: 700; }
+        .modal-close { position: absolute; top: 10px; right: 10px; display: grid; width: 38px; height: 38px; place-items: center; color: #fff; background: rgba(8,22,36,.75); border: 1px solid rgba(255,255,255,.35); border-radius: 50%; cursor: pointer; font-size: 24px; line-height: 1; }
+        @media (max-width: 700px) { main { width: min(100% - 24px, 600px); padding: 24px 0 38px; } .back { margin-bottom: 22px; } .intro { margin-bottom: 24px; } .media-grid { grid-template-columns: 1fr; } .render-card { flex-basis: 86%; } .model-placeholder { min-height: 280px; } }
+    </style>
+</head>
+<body>
+    <main>
+        <a class="back" href="./index.html">← Вернуться к комнатам</a>
+        <h1 id="room-name">Комната</h1>
+        <p class="intro" id="room-description">Здесь собраны планировка, рендеры и будущая 3D-модель помещения.</p>
+
+        <section class="media-grid" aria-label="Материалы комнаты">
+            <div>
+                <h2>Планировка</h2>
+                <button class="media-card" type="button" data-full-image="./images/room-placeholder.svg" data-caption="Планировка комнаты">
+                    <img src="./images/room-placeholder.svg" alt="Планировка комнаты">
+                    <span class="card-label">Открыть планировку</span>
+                </button>
+            </div>
+            <div>
+                <div class="renders-head"><h2>Рендеры</h2><p>Прокручивайте вправо</p></div>
+                <div class="render-track" tabindex="0" aria-label="Галерея рендеров комнаты">
+                    <button class="render-card" type="button" data-full-image="./images/room-placeholder.svg" data-caption="Рендер комнаты — вид 1"><img src="./images/room-placeholder.svg" alt="Рендер комнаты, вид 1"><span class="card-label">Вид 1</span></button>
+                    <button class="render-card" type="button" data-full-image="./images/room-placeholder.svg" data-caption="Рендер комнаты — вид 2"><img src="./images/room-placeholder.svg" alt="Рендер комнаты, вид 2"><span class="card-label">Вид 2</span></button>
+                    <button class="render-card" type="button" data-full-image="./images/room-placeholder.svg" data-caption="Рендер комнаты — вид 3"><img src="./images/room-placeholder.svg" alt="Рендер комнаты, вид 3"><span class="card-label">Вид 3</span></button>
+                </div>
+            </div>
+        </section>
+
+        <section aria-labelledby="model-title">
+            <h2 id="model-title">3D-модель комнаты</h2>
+            <div class="model-placeholder"><div><strong>3D-модель появится здесь</strong><span>Место подготовлено для интерактивного просмотра модели этой комнаты.</span></div></div>
+        </section>
+    </main>
+
+    <dialog id="image-modal" aria-labelledby="modal-caption">
+        <button class="modal-close" type="button" aria-label="Закрыть просмотр">×</button>
+        <img class="modal-image" src="" alt="">
+        <div class="modal-caption" id="modal-caption"></div>
+    </dialog>
+    <script>
+        const rooms = {
+            kitchen: { title: "Кухня-гостиная", description: "Планировка, подборка интерьерных рендеров и будущая 3D-модель кухни-гостиной." },
+            bedroom: { title: "Спальня", description: "Планировка, подборка интерьерных рендеров и будущая 3D-модель спальни." },
+            bathroom: { title: "Санузел", description: "Планировка, подборка интерьерных рендеров и будущая 3D-модель санузла." },
+            hall: { title: "Прихожая", description: "Планировка, подборка интерьерных рендеров и будущая 3D-модель прихожей." },
+            terrace: { title: "Терраса", description: "Планировка, подборка рендеров и будущая 3D-модель террасы." }
+        };
+        const currentRoom = rooms[new URLSearchParams(location.search).get("room")] || { title: "Комната", description: "Планировка, подборка интерьерных рендеров и будущая 3D-модель помещения." };
+        document.title = `${currentRoom.title} — проект дома`;
+        document.getElementById("room-name").textContent = currentRoom.title;
+        document.getElementById("room-description").textContent = currentRoom.description;
+
+        const modal = document.getElementById("image-modal"), modalImage = modal.querySelector(".modal-image"), modalCaption = document.getElementById("modal-caption");
+        document.querySelectorAll("[data-full-image]").forEach((button) => button.addEventListener("click", () => {
+            modalImage.src = button.dataset.fullImage;
+            modalImage.alt = button.querySelector("img").alt;
+            modalCaption.textContent = button.dataset.caption;
+            modal.showModal();
+        }));
+        modal.querySelector(".modal-close").addEventListener("click", () => modal.close());
+        modal.addEventListener("click", (event) => { if (event.target === modal) modal.close(); });
+    </script>
+</body>
+</html>

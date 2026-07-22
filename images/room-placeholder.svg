@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-labelledby="title">
+  <title id="title">Место для фотографии комнаты</title>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#315b76"/><stop offset="1" stop-color="#17324a"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="500" fill="url(#background)"/>
+  <path d="M0 390 185 250l126 95 134-165 355 210v110H0z" fill="#9cb8c9" fill-opacity=".18"/>
+  <circle cx="400" cy="210" r="56" fill="none" stroke="#dff5ee" stroke-width="5" stroke-opacity=".75"/>
+  <path d="M375 210h50M400 185v50" stroke="#dff5ee" stroke-width="5" stroke-linecap="round" stroke-opacity=".75"/>
+  <text x="400" y="320" fill="#dff5ee" fill-opacity=".85" font-family="Arial, sans-serif" font-size="28" text-anchor="middle">Фото будет добавлено</text>
+</svg>
