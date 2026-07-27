@@ -28,6 +28,8 @@ Defaults are 200 MB, one conversion at a time, five-minute conversion timeout, a
 
 `metadata.json` extracts IFC entity information available in the STEP text (`GlobalId`, IFC type and name). It deliberately states that IfcConvert GLB mesh-to-`GlobalId` matching is not guaranteed; future room tools should use the IFC metadata rather than mesh names.
 
+Each room page can upload a floorplan (JPG/PNG/WEBP), multiple render images, and one GLB room model. These assets are stored by the Render API under `MODEL_STORAGE_DIR/rooms`; set `UPLOAD_PASSWORD` on Render (the development default is `test123`) and attach a persistent disk for durable room content.
+
 ## Checks
 
 Run `npm test` in `server`. A real conversion still requires a locally available `IfcConvert` and sample IFC; `/health` reports whether it was found.

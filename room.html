@@ -29,12 +29,20 @@
         .render-card img { aspect-ratio: 16 / 10; }
         .model-placeholder { display: grid; min-height: 380px; place-items: center; padding: 24px; color: #a8bfce; text-align: center; background: linear-gradient(135deg, rgba(78,119,145,.34), rgba(15,36,55,.75)); border: 1px dashed rgba(223,245,238,.42); border-radius: 20px; }
         .model-placeholder strong { display: block; margin-bottom: 8px; color: #dff5ee; font-size: 20px; }
+        .model-frame { width: 100%; height: min(65vw, 620px); min-height: 380px; border: 1px solid rgba(255,255,255,.16); border-radius: 20px; background: #dce7f2; }
+        .upload-panel { margin-top: 38px; padding: 22px; background: rgba(11,30,47,.76); border: 1px solid rgba(255,255,255,.16); border-radius: 18px; }
+        .upload-panel h2 { margin-top: 0; }
+        .upload-form { display: grid; grid-template-columns: 1fr 1.5fr 1fr auto; gap: 10px; }
+        .upload-form select, .upload-form input, .upload-form button { min-width: 0; padding: 11px 12px; color: #fff; background: #102f48; border: 1px solid rgba(255,255,255,.25); border-radius: 10px; font: inherit; }
+        .upload-form button { color: #15304a; background: #dff5ee; border: 0; cursor: pointer; font-weight: 800; }
+        .upload-form button:disabled { cursor: wait; opacity: .65; }
+        .upload-help, .upload-status { margin: 10px 0 0; color: #a8bfce; font-size: 13px; line-height: 1.45; }
         dialog { width: min(1100px, calc(100% - 32px)); max-width: none; max-height: min(92vh, 900px); padding: 0; overflow: hidden; background: #0b1928; border: 1px solid rgba(255,255,255,.25); border-radius: 18px; box-shadow: 0 24px 80px rgba(0,0,0,.6); }
         dialog::backdrop { background: rgba(3, 11, 20, .84); backdrop-filter: blur(4px); }
         .modal-image { display: block; max-width: 100%; max-height: calc(92vh - 62px); margin: 0 auto; object-fit: contain; }
         .modal-caption { padding: 15px 62px 16px 18px; color: #dbe8f3; font-weight: 700; }
         .modal-close { position: absolute; top: 10px; right: 10px; display: grid; width: 38px; height: 38px; place-items: center; color: #fff; background: rgba(8,22,36,.75); border: 1px solid rgba(255,255,255,.35); border-radius: 50%; cursor: pointer; font-size: 24px; line-height: 1; }
-        @media (max-width: 700px) { main { width: min(100% - 24px, 600px); padding: 24px 0 38px; } .back { margin-bottom: 22px; } .intro { margin-bottom: 24px; } .media-grid { grid-template-columns: 1fr; } .render-card { flex-basis: 86%; } .model-placeholder { min-height: 280px; } }
+        @media (max-width: 700px) { main { width: min(100% - 24px, 600px); padding: 24px 0 38px; } .back { margin-bottom: 22px; } .intro { margin-bottom: 24px; } .media-grid { grid-template-columns: 1fr; } .render-card { flex-basis: 86%; } .model-placeholder, .model-frame { min-height: 280px; } .upload-form { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -46,14 +54,14 @@
         <section class="media-grid" aria-label="Материалы комнаты">
             <div>
                 <h2>Планировка</h2>
-                <button class="media-card" type="button" data-full-image="./images/room-placeholder.svg" data-caption="Планировка комнаты">
+                <button id="floorplan-card" class="media-card" type="button" data-full-image="./images/room-placeholder.svg" data-caption="Планировка комнаты">
                     <img src="./images/room-placeholder.svg" alt="Планировка комнаты">
                     <span class="card-label">Открыть планировку</span>
                 </button>
             </div>
             <div>
                 <div class="renders-head"><h2>Рендеры</h2><p>Прокручивайте вправо</p></div>
-                <div class="render-track" tabindex="0" aria-label="Галерея рендеров комнаты">
+                <div id="render-track" class="render-track" tabindex="0" aria-label="Галерея рендеров комнаты">
                     <button class="render-card" type="button" data-full-image="./images/room-placeholder.svg" data-caption="Рендер комнаты — вид 1"><img src="./images/room-placeholder.svg" alt="Рендер комнаты, вид 1"><span class="card-label">Вид 1</span></button>
                     <button class="render-card" type="button" data-full-image="./images/room-placeholder.svg" data-caption="Рендер комнаты — вид 2"><img src="./images/room-placeholder.svg" alt="Рендер комнаты, вид 2"><span class="card-label">Вид 2</span></button>
                     <button class="render-card" type="button" data-full-image="./images/room-placeholder.svg" data-caption="Рендер комнаты — вид 3"><img src="./images/room-placeholder.svg" alt="Рендер комнаты, вид 3"><span class="card-label">Вид 3</span></button>
@@ -63,7 +71,19 @@
 
         <section aria-labelledby="model-title">
             <h2 id="model-title">3D-модель комнаты</h2>
-            <div class="model-placeholder"><div><strong>3D-модель появится здесь</strong><span>Место подготовлено для интерактивного просмотра модели этой комнаты.</span></div></div>
+            <div id="room-model" class="model-placeholder"><div><strong>3D-модель появится здесь</strong><span>Загрузите модель комнаты в формате GLB.</span></div></div>
+        </section>
+
+        <section class="upload-panel" aria-labelledby="upload-title">
+            <h2 id="upload-title">Добавить материалы комнаты</h2>
+            <form id="upload-form" class="upload-form">
+                <select id="asset-kind" aria-label="Тип материала"><option value="render">Фото рендера</option><option value="floorplan">Планировка</option><option value="model">3D-модель</option></select>
+                <input id="asset-file" type="file" accept="image/jpeg,image/png,image/webp" required>
+                <input id="asset-password" type="password" autocomplete="current-password" placeholder="Пароль" required>
+                <button id="asset-submit" type="submit">Загрузить</button>
+            </form>
+            <p class="upload-help">Фото и планировки: JPG, PNG или WEBP. Модель: GLB. Новая планировка и модель заменяют прежние, рендеры добавляются в галерею.</p>
+            <p id="upload-status" class="upload-status" aria-live="polite"></p>
         </section>
     </main>
 
@@ -72,6 +92,7 @@
         <img class="modal-image" src="" alt="">
         <div class="modal-caption" id="modal-caption"></div>
     </dialog>
+    <script>window.MODEL_API_URL = "https://house-viewer.onrender.com";</script>
     <script>
         const rooms = {
             kitchen: { title: "Кухня-гостиная", description: "Планировка, подборка интерьерных рендеров и будущая 3D-модель кухни-гостиной." },
@@ -80,20 +101,75 @@
             hall: { title: "Прихожая", description: "Планировка, подборка интерьерных рендеров и будущая 3D-модель прихожей." },
             terrace: { title: "Терраса", description: "Планировка, подборка рендеров и будущая 3D-модель террасы." }
         };
-        const currentRoom = rooms[new URLSearchParams(location.search).get("room")] || { title: "Комната", description: "Планировка, подборка интерьерных рендеров и будущая 3D-модель помещения." };
+        const roomKey = new URLSearchParams(location.search).get("room");
+        const currentRoom = rooms[roomKey] || { title: "Комната", description: "Планировка, подборка интерьерных рендеров и будущая 3D-модель помещения." };
+        const API_URL = window.MODEL_API_URL || "http://localhost:3001";
         document.title = `${currentRoom.title} — проект дома`;
         document.getElementById("room-name").textContent = currentRoom.title;
         document.getElementById("room-description").textContent = currentRoom.description;
 
         const modal = document.getElementById("image-modal"), modalImage = modal.querySelector(".modal-image"), modalCaption = document.getElementById("modal-caption");
-        document.querySelectorAll("[data-full-image]").forEach((button) => button.addEventListener("click", () => {
+        document.addEventListener("click", (event) => {
+            const button = event.target.closest("[data-full-image]");
+            if (!button) return;
             modalImage.src = button.dataset.fullImage;
             modalImage.alt = button.querySelector("img").alt;
             modalCaption.textContent = button.dataset.caption;
             modal.showModal();
-        }));
+        });
         modal.querySelector(".modal-close").addEventListener("click", () => modal.close());
         modal.addEventListener("click", (event) => { if (event.target === modal) modal.close(); });
+
+        const absoluteAssetUrl = (url) => url ? `${API_URL}${url}` : null;
+        function showAssets(assets) {
+            const floorplan = document.getElementById("floorplan-card");
+            const floorplanUrl = absoluteAssetUrl(assets.floorplanUrl) || "./images/room-placeholder.svg";
+            floorplan.dataset.fullImage = floorplanUrl;
+            floorplan.querySelector("img").src = floorplanUrl;
+            const renders = assets.renderUrls?.length ? assets.renderUrls : [null];
+            document.getElementById("render-track").innerHTML = renders.map((url, index) => {
+                const src = absoluteAssetUrl(url) || "./images/room-placeholder.svg";
+                return `<button class="render-card" type="button" data-full-image="${src}" data-caption="Рендер комнаты — вид ${index + 1}"><img src="${src}" alt="Рендер комнаты, вид ${index + 1}"><span class="card-label">Вид ${index + 1}</span></button>`;
+            }).join("");
+            const modelBox = document.getElementById("room-model");
+            if (assets.modelUrl) {
+                const modelUrl = absoluteAssetUrl(assets.modelUrl);
+                const viewerUrl = `./viewer.html?preview=1&model=${encodeURIComponent(modelUrl)}`;
+                modelBox.outerHTML = `<iframe id="room-model" class="model-frame" src="${viewerUrl}" title="3D-модель ${currentRoom.title}" loading="lazy"></iframe>`;
+            }
+        }
+        async function loadAssets() {
+            if (!rooms[roomKey]) return;
+            try {
+                const response = await fetch(`${API_URL}/api/rooms/${encodeURIComponent(roomKey)}`);
+                if (!response.ok) throw new Error();
+                showAssets(await response.json());
+            } catch {
+                document.getElementById("upload-status").textContent = "Не удалось получить материалы с Render API.";
+            }
+        }
+        const kindInput = document.getElementById("asset-kind"), fileInput = document.getElementById("asset-file"), uploadForm = document.getElementById("upload-form"), uploadStatus = document.getElementById("upload-status"), submitButton = document.getElementById("asset-submit");
+        kindInput.addEventListener("change", () => { fileInput.accept = kindInput.value === "model" ? ".glb,model/gltf-binary" : "image/jpeg,image/png,image/webp"; fileInput.value = ""; });
+        uploadForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            if (!rooms[roomKey]) return;
+            submitButton.disabled = true;
+            uploadStatus.style.color = "";
+            uploadStatus.textContent = "Загрузка…";
+            const data = new FormData(); data.append("file", fileInput.files[0]);
+            try {
+                const response = await fetch(`${API_URL}/api/rooms/${encodeURIComponent(roomKey)}/assets/${kindInput.value}`, { method: "POST", headers: { "X-Upload-Password": document.getElementById("asset-password").value }, body: data });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || "Не удалось загрузить файл.");
+                showAssets(result);
+                fileInput.value = "";
+                uploadStatus.textContent = "Материал загружен.";
+            } catch (error) {
+                uploadStatus.style.color = "#ffb4b4";
+                uploadStatus.textContent = error.message || "Не удалось связаться с Render API.";
+            } finally { submitButton.disabled = false; }
+        });
+        loadAssets();
     </script>
 </body>
 </html>
