@@ -15,7 +15,10 @@ test("room assets and notes are shared, persisted, and removable", async () => {
   await fs.writeFile(path.join(roomDirectory, "media.json"), JSON.stringify([{ id: "photo-fedcba9876543210", filename: photoFilename, roomId: "kitchen", type: "construction", date: "2026-07-28", comment: "Установлены шкафы", createdAt: "2026-07-28T12:00:00.000Z" }]));
   process.env.MODEL_STORAGE_DIR = storage;
   process.env.UPLOAD_PASSWORD = "persistence-test";
-  const { deleteRoomAsset, readNotes, roomManifest, updateNotes } = await import(`../index.js?test=${Date.now()}`);
+  await fs.mkdir(path.join(storage, "project"), { recursive: true });
+  await fs.writeFile(path.join(storage, "project", "floorplan.png"), "project plan");
+  const { deleteRoomAsset, projectManifest, readNotes, roomManifest, updateNotes } = await import(`../index.js?test=${Date.now()}`);
+  assert.match((await projectManifest()).floorplanUrl, /\/api\/project\/floorplan\/floorplan\.png\?v=/);
   const shared = await roomManifest("kitchen");
   assert.equal(shared.renderUrls.length, 1);
   assert.equal(shared.photos[0].roomId, "kitchen");
@@ -30,7 +33,9 @@ test("room assets and notes are shared, persisted, and removable", async () => {
   await updateNotes((notes) => [...notes, note]);
   const stored = JSON.parse(await fs.readFile(path.join(storage, "site-notes.json"), "utf8"));
   assert.equal(stored[0].text, "Общая заметка");
-  await updateNotes((notes) => notes.filter(({ id }) => id !== note.id));
+  await Promise.all(Array.from({ length: 10 }, (_, index) => updateNotes((notes) => [...notes, { id: String(index).padStart(24, "0"), text: `Пин ${index}` }])));
+  assert.equal((await readNotes()).length, 11);
+  await updateNotes(() => []);
   assert.deepEqual(await readNotes(), []);
   await fs.rm(storage, { recursive: true, force: true });
 });

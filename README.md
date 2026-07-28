@@ -28,9 +28,9 @@ Defaults are 200 MB, one conversion at a time, five-minute conversion timeout, a
 
 `metadata.json` extracts IFC entity information available in the STEP text (`GlobalId`, IFC type and name). It deliberately states that IfcConvert GLB mesh-to-`GlobalId` matching is not guaranteed; future room tools should use the IFC metadata rather than mesh names.
 
-Each room page can upload a floorplan (JPG/PNG/WEBP), multiple render images, and one GLB room model. These assets are stored by the Render API under `MODEL_STORAGE_DIR/rooms`; set `UPLOAD_PASSWORD` on Render (the development default is `test123`) and attach a persistent disk for durable room content.
+Each room page can upload a floorplan (JPG/PNG/WEBP), multiple render images, and one GLB room model. The project page also stores a project-wide floorplan under `MODEL_STORAGE_DIR/project` and uses it as the pin-board background. Set `UPLOAD_PASSWORD` on Render (the development default is `test123`) and attach a persistent disk for durable content.
 
-The home page also has a shared numbered notes list. Notes are stored in `MODEL_STORAGE_DIR/site-notes.json`; adding and deleting notes requires the same upload password.
+The home page also has a shared numbered notes list. Notes are written atomically to `MODEL_STORAGE_DIR/site-notes.json` and are excluded from model TTL cleanup; adding, moving and deleting notes requires the same upload password. Production must mount `MODEL_STORAGE_DIR` on a persistent disk, otherwise local files can disappear when the host restarts or redeploys.
 
 ## Checks
 

@@ -16,6 +16,7 @@ const uploadPassword = process.env.UPLOAD_PASSWORD || "test123";
 const roomRoot = path.join(root, "rooms");
 const notesFile = path.join(root, "site-notes.json");
 const roomsFile = path.join(root, "rooms.json");
+const projectRoot = path.join(root, "project");
 const defaultRooms = [
   { id: "kitchen", slug: "kitchen", name: "Кухня-гостиная", area: 28.4 }, { id: "bedroom", slug: "bedroom", name: "Спальня", area: 16.2 },
   { id: "bathroom", slug: "bathroom", name: "Санузел", area: 6.8 }, { id: "hall", slug: "hallway", name: "Прихожая", area: 10.5 }, { id: "terrace", slug: "balcony", name: "Балкон / терраса", area: 14.1 }
@@ -51,6 +52,30 @@ const roomUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize:
 const imageExtensions = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 const imageMime = /^image\/(jpeg|png|webp)$/;
 const publicRoomAsset = (room, filename, version) => `/api/rooms/${room}/assets/${encodeURIComponent(filename)}${version ? `?v=${Math.trunc(version)}` : ""}`;
+const projectFloorplanName = (name) => /^floorplan\.(jpg|jpeg|png|webp)$/.test(name);
+export async function projectManifest() {
+  const files = await fs.readdir(projectRoot).catch(() => []), floorplan = files.find(projectFloorplanName);
+  if (!floorplan) return { floorplanUrl: null };
+  const modified = (await fs.stat(path.join(projectRoot, floorplan))).mtimeMs;
+  return { floorplanUrl: `/api/project/floorplan/${encodeURIComponent(floorplan)}?v=${Math.trunc(modified)}` };
+}
+app.get("/api/project", async (_, res, next) => { try { res.set("Cache-Control", "no-store"); res.json(await projectManifest()); } catch (error) { next(error); } });
+app.get("/api/project/floorplan/:filename", (req, res) => {
+  if (!projectFloorplanName(req.params.filename)) return res.status(404).end();
+  res.set("Cache-Control", "public, max-age=3600");
+  res.sendFile(req.params.filename, { root: projectRoot }, (error) => { if (error && !res.headersSent) res.status(404).end(); });
+});
+app.post("/api/project/floorplan", requireUploadPassword, roomUpload.single("file"), async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Выберите файл планировки." });
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    if (!imageExtensions.has(ext) || !imageMime.test(req.file.mimetype)) return res.status(400).json({ error: "Для планировки используйте JPG, PNG или WEBP." });
+    await fs.mkdir(projectRoot, { recursive: true });
+    for (const old of await fs.readdir(projectRoot)) if (projectFloorplanName(old)) await fs.rm(path.join(projectRoot, old), { force: true });
+    await fs.writeFile(path.join(projectRoot, `floorplan${ext}`), req.file.buffer, { mode: 0o640 });
+    res.status(201).json(await projectManifest());
+  } catch (error) { next(error); }
+});
 async function saveRooms() { await fs.mkdir(root, { recursive: true }); const temporary = `${roomsFile}.${crypto.randomBytes(5).toString("hex")}.tmp`; await fs.writeFile(temporary, JSON.stringify([...roomCatalog.values()], null, 2), { mode: 0o640 }); await fs.rename(temporary, roomsFile); }
 async function readRoomMedia(room) {
   try { const value = JSON.parse(await fs.readFile(path.join(roomRoot, room, "media.json"), "utf8")); return Array.isArray(value) ? value : []; }

@@ -2,7 +2,7 @@
   const API_URL = window.MODEL_API_URL || "http://localhost:3001";
   const roomNames = Object.fromEntries(window.HOUSE_ROOMS.map(({ id, name }) => [id, name]));
   const placeholder = "./images/room-placeholder.svg";
-  let roomData = {}, notes = [], activeNoteId = null;
+  let roomData = {}, notes = [], activeNoteId = null, projectFloorplanUrl = null;
   const absoluteUrl = (url) => url ? `${API_URL}${url}` : null;
 
   function setMode(mode) {
@@ -31,6 +31,9 @@
   function renderPlan() {
     document.getElementById("plan-rooms").innerHTML = Object.entries(roomNames).map(([key]) => roomTile(key, roomData[key] || {})).join("");
   }
+  function applyProjectFloorplan(url) { projectFloorplanUrl = absoluteUrl(url); const view=document.getElementById("project-floorplan-view"), board=document.getElementById("pin-board"); if(projectFloorplanUrl) { view.className=""; const image=document.createElement("img"); image.src=projectFloorplanUrl; image.alt="Планировка всего проекта"; view.replaceChildren(image); board.style.backgroundImage=`url("${projectFloorplanUrl}")`; board.classList.add("has-floorplan"); } else { view.className="project-floorplan-empty"; view.textContent="Общая планировка ещё не загружена."; board.style.backgroundImage=""; board.classList.remove("has-floorplan"); } }
+  async function loadProjectFloorplan() { try { const response=await fetch(`${API_URL}/api/project`,{cache:"no-store"}); if(response.ok) applyProjectFloorplan((await response.json()).floorplanUrl); } catch {} }
+  const projectFloorplanInput=document.createElement("input"); projectFloorplanInput.type="file"; projectFloorplanInput.accept="image/jpeg,image/png,image/webp"; projectFloorplanInput.hidden=true; document.body.append(projectFloorplanInput); document.getElementById("project-floorplan-upload").onclick=()=>projectFloorplanInput.click(); projectFloorplanInput.onchange=async()=>{ const file=projectFloorplanInput.files[0], status=document.getElementById("project-floorplan-status"); if(!file)return; const password=prompt("Введите пароль для загрузки общей планировки:")||""; if(!password)return; status.textContent="Загрузка…"; const data=new FormData(); data.append("file",file); try { const response=await fetch(`${API_URL}/api/project/floorplan`,{method:"POST",headers:{"X-Upload-Password":password},body:data}), result=await response.json(); if(!response.ok)throw new Error(result.error||"Не удалось загрузить планировку."); applyProjectFloorplan(result.floorplanUrl); status.textContent="Общая планировка сохранена и установлена фоном для пинов."; }catch(error){status.textContent=error.message;}finally{projectFloorplanInput.value="";} };
   function galleryMarkup(useAll = true) {
     const sections = Object.entries(roomNames).map(([key, title]) => {
       const room = roomData[key] || {};
@@ -133,5 +136,5 @@
     } catch (error) { status.textContent = error.message; } finally { submit.disabled = false; }
   });
 
-  loadRooms(); loadNotes();
+  loadRooms(); loadNotes(); loadProjectFloorplan();
 })();
