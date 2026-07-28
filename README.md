@@ -1,6 +1,6 @@
 # House viewer
 
-Static Three.js viewer with local GLB upload and a separate IFC conversion API. The original model is loaded from `models/house.glb`; viewer controls, fitting, walls toggle, auto-rotation and fullscreen remain available.
+Single-screen House Reviewer interface built around a Three.js model, with plan, photo, render, document and shared-note modes. The original model is loaded from `models/house.glb`; viewer controls, fitting, walls toggle, lighting, screenshots, camera transitions and fullscreen remain available.
 
 ## Architecture
 
@@ -14,7 +14,7 @@ Start the API with Docker (copy `.env.example` to `server/.env` and set the real
 docker compose up --build
 ```
 
-Serve the project directory with any static HTTP server, then open `viewer.html`. The frontend expects the API at `http://localhost:3001`; define `window.MODEL_API_URL` before `scripts/app.js` when deploying it elsewhere. Check conversion support at `GET /health`.
+Serve the project directory with any static HTTP server, then open `index.html`. It immediately displays the full-screen reviewer; there is no separate landing page. The frontend expects the API at `http://localhost:3001`; define `window.MODEL_API_URL` before `scripts/app.js` when deploying it elsewhere. Check conversion support at `GET /health`.
 
 For a local Node run, install Node 22+, install `IfcConvert` from a compatible IfcOpenShell distribution, then run `npm install` and `npm start` inside `server`.
 

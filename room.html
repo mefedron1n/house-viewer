@@ -18,6 +18,8 @@
         .media-grid { display: grid; grid-template-columns: minmax(260px, .85fr) minmax(0, 1.6fr); gap: 18px; }
         .media-card, .render-card { padding: 0; overflow: hidden; color: inherit; background: #18354e; border: 1px solid rgba(255,255,255,.16); border-radius: 18px; cursor: zoom-in; text-align: left; transition: transform .2s ease, border-color .2s ease; }
         .media-card:hover, .render-card:hover { transform: translateY(-3px); border-color: rgba(223,245,238,.7); }
+        [data-upload-kind] { border-style: dashed; }
+        [data-upload-kind] .card-label { color: #dff5ee; text-align: center; }
         .media-card img, .render-card img { display: block; width: 100%; background: #284b65; object-fit: cover; }
         .media-card img { aspect-ratio: 4 / 3; }
         .card-label { display: block; padding: 13px 15px 15px; font-size: 15px; font-weight: 700; }
@@ -81,15 +83,15 @@
             <div id="model-actions" class="asset-actions" hidden></div>
         </section>
 
-        <section class="upload-panel" aria-labelledby="upload-title">
+        <section id="upload-panel" class="upload-panel" aria-labelledby="upload-title">
             <h2 id="upload-title">Добавить материалы комнаты</h2>
             <form id="upload-form" class="upload-form">
                 <select id="asset-kind" aria-label="Тип материала"><option value="render">Фото рендера</option><option value="floorplan">Планировка</option><option value="model">3D-модель</option></select>
-                <input id="asset-file" type="file" accept="image/jpeg,image/png,image/webp" required>
-                <input id="asset-password" type="password" autocomplete="current-password" placeholder="Пароль" required>
-                <button id="asset-submit" type="submit">Загрузить</button>
+                <input id="asset-file" type="file" accept="image/jpeg,image/png,image/webp" multiple required>
+                <input id="asset-password" type="password" autocomplete="current-password" placeholder="Введите пароль" required hidden>
+                <button id="asset-submit" type="submit" hidden>Загрузить выбранное</button>
             </form>
-            <p class="upload-help">Фото и планировки: JPG, PNG или WEBP. Модель: GLB. Новая планировка и модель заменяют прежние, рендеры добавляются в галерею.</p>
+            <p class="upload-help">Для рендеров можно выбрать сразу несколько фото. Фото и планировки: JPG, PNG или WEBP. Модель: GLB. Новая планировка и модель заменяют прежние, рендеры добавляются в галерею.</p>
             <p id="upload-status" class="upload-status" aria-live="polite"></p>
         </section>
     </main>
@@ -119,6 +121,12 @@
         document.addEventListener("click", (event) => {
             const button = event.target.closest("[data-full-image]");
             if (!button) return;
+            if (button.dataset.uploadKind) {
+                document.getElementById("asset-kind").value = button.dataset.uploadKind;
+                document.getElementById("asset-kind").dispatchEvent(new Event("change"));
+                document.getElementById("asset-file").click();
+                return;
+            }
             modalImage.src = button.dataset.fullImage;
             modalImage.alt = button.querySelector("img").alt;
             modalCaption.textContent = button.dataset.caption;
@@ -135,13 +143,16 @@
             const floorplanUrl = absoluteAssetUrl(assets.floorplanUrl) || "./images/room-placeholder.svg";
             floorplan.dataset.fullImage = floorplanUrl;
             floorplan.querySelector("img").src = floorplanUrl;
+            floorplan.toggleAttribute("data-upload-kind", !assets.floorplanUrl);
+            if (!assets.floorplanUrl) floorplan.dataset.uploadKind = "floorplan"; else delete floorplan.dataset.uploadKind;
+            floorplan.querySelector(".card-label").textContent = assets.floorplanUrl ? "Открыть планировку" : "+ Загрузить планировку";
             const floorplanActions = document.getElementById("floorplan-actions");
             floorplanActions.hidden = !assets.floorplanUrl;
             floorplanActions.innerHTML = assets.floorplanUrl ? deleteButton(assets.floorplanUrl, "планировку") : "";
             const renders = assets.renderUrls?.length ? assets.renderUrls : [null];
             document.getElementById("render-track").innerHTML = renders.map((url, index) => {
                 const src = absoluteAssetUrl(url) || "./images/room-placeholder.svg";
-                return `<div class="render-item"><button class="render-card" type="button" data-full-image="${src}" data-caption="Рендер комнаты — вид ${index + 1}"><img src="${src}" alt="Рендер комнаты, вид ${index + 1}"><span class="card-label">Вид ${index + 1}</span></button>${url ? `<div class="asset-actions">${deleteButton(url, "фото")}</div>` : ""}</div>`;
+                return `<div class="render-item"><button class="render-card" type="button" data-full-image="${src}" ${url ? "" : `data-upload-kind="render"`} data-caption="Рендер комнаты — вид ${index + 1}"><img src="${src}" alt="${url ? `Рендер комнаты, вид ${index + 1}` : "Загрузить фото рендера"}"><span class="card-label">${url ? `Вид ${index + 1}` : "+ Загрузить фото"}</span></button>${url ? `<div class="asset-actions">${deleteButton(url, "фото")}</div>` : ""}</div>`;
             }).join("");
             const modelBox = document.getElementById("room-model");
             if (assets.modelUrl) {
@@ -163,22 +174,37 @@
                 document.getElementById("upload-status").textContent = "Не удалось получить материалы с Render API.";
             }
         }
-        const kindInput = document.getElementById("asset-kind"), fileInput = document.getElementById("asset-file"), uploadForm = document.getElementById("upload-form"), uploadStatus = document.getElementById("upload-status"), submitButton = document.getElementById("asset-submit");
-        kindInput.addEventListener("change", () => { fileInput.accept = kindInput.value === "model" ? ".glb,model/gltf-binary" : "image/jpeg,image/png,image/webp"; fileInput.value = ""; });
+        const kindInput = document.getElementById("asset-kind"), fileInput = document.getElementById("asset-file"), passwordInput = document.getElementById("asset-password"), uploadForm = document.getElementById("upload-form"), uploadStatus = document.getElementById("upload-status"), submitButton = document.getElementById("asset-submit");
+        const resetUploadConfirmation = () => { passwordInput.hidden = true; submitButton.hidden = true; };
+        kindInput.addEventListener("change", () => { fileInput.accept = kindInput.value === "model" ? ".glb,model/gltf-binary" : "image/jpeg,image/png,image/webp"; fileInput.multiple = kindInput.value === "render"; fileInput.value = ""; resetUploadConfirmation(); });
+        fileInput.addEventListener("change", () => {
+            if (!fileInput.files.length) return resetUploadConfirmation();
+            passwordInput.hidden = false; submitButton.hidden = false;
+            uploadStatus.style.color = "";
+            uploadStatus.textContent = fileInput.files.length > 1 ? `Выбрано файлов: ${fileInput.files.length}. Введите пароль.` : `Выбран файл «${fileInput.files[0].name}». Введите пароль.`;
+            document.getElementById("upload-panel").scrollIntoView({ behavior: "smooth", block: "center" });
+            setTimeout(() => passwordInput.focus(), 350);
+        });
         uploadForm.addEventListener("submit", async (event) => {
             event.preventDefault();
             if (!rooms[roomKey]) return;
             submitButton.disabled = true;
             uploadStatus.style.color = "";
-            uploadStatus.textContent = "Загрузка…";
-            const data = new FormData(); data.append("file", fileInput.files[0]);
+            const files = [...fileInput.files];
+            uploadStatus.textContent = files.length > 1 ? `Загрузка 1 из ${files.length}…` : "Загрузка…";
             try {
-                const response = await fetch(`${API_URL}/api/rooms/${encodeURIComponent(roomKey)}/assets/${kindInput.value}`, { method: "POST", headers: { "X-Upload-Password": document.getElementById("asset-password").value }, body: data });
-                const result = await response.json();
-                if (!response.ok) throw new Error(result.error || "Не удалось загрузить файл.");
+                let result;
+                for (let index = 0; index < files.length; index++) {
+                    if (files.length > 1) uploadStatus.textContent = `Загрузка ${index + 1} из ${files.length}…`;
+                    const data = new FormData(); data.append("file", files[index]);
+                    const response = await fetch(`${API_URL}/api/rooms/${encodeURIComponent(roomKey)}/assets/${kindInput.value}`, { method: "POST", headers: { "X-Upload-Password": document.getElementById("asset-password").value }, body: data });
+                    result = await response.json();
+                    if (!response.ok) throw new Error(result.error || `Не удалось загрузить файл ${files[index].name}.`);
+                }
                 showAssets(result);
                 fileInput.value = "";
-                uploadStatus.textContent = "Материал загружен.";
+                resetUploadConfirmation();
+                uploadStatus.textContent = files.length > 1 ? `Загружено фото: ${files.length}.` : "Материал загружен.";
             } catch (error) {
                 uploadStatus.style.color = "#ffb4b4";
                 uploadStatus.textContent = error.message || "Не удалось связаться с Render API.";
@@ -187,8 +213,9 @@
         document.addEventListener("click", async (event) => {
             const button = event.target.closest("[data-delete-asset]");
             if (!button || !rooms[roomKey]) return;
-            const password = document.getElementById("asset-password").value;
-            if (!password) { uploadStatus.style.color = "#ffb4b4"; uploadStatus.textContent = "Введите пароль, чтобы удалить материал."; return; }
+            const password = passwordInput.value || window.prompt("Введите пароль, чтобы удалить материал:") || "";
+            if (!password) { uploadStatus.style.color = "#ffb4b4"; uploadStatus.textContent = "Удаление отменено: пароль не введён."; return; }
+            passwordInput.value = password;
             button.disabled = true; uploadStatus.style.color = ""; uploadStatus.textContent = "Удаление…";
             try {
                 const response = await fetch(`${API_URL}/api/rooms/${encodeURIComponent(roomKey)}/assets/${encodeURIComponent(button.dataset.deleteAsset)}`, { method: "DELETE", headers: { "X-Upload-Password": password } });
