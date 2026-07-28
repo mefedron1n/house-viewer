@@ -44,19 +44,36 @@ const roomUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize:
 const imageExtensions = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 const imageMime = /^image\/(jpeg|png|webp)$/;
 const publicRoomAsset = (room, filename, version) => `/api/rooms/${room}/assets/${encodeURIComponent(filename)}${version ? `?v=${Math.trunc(version)}` : ""}`;
+async function readRoomMedia(room) {
+  try { const value = JSON.parse(await fs.readFile(path.join(roomRoot, room, "media.json"), "utf8")); return Array.isArray(value) ? value : []; }
+  catch (error) { if (error.code === "ENOENT" || error instanceof SyntaxError) return []; throw error; }
+}
+async function writeRoomMedia(room, media) {
+  const dir = path.join(roomRoot, room); await fs.mkdir(dir, { recursive: true });
+  const temporary = path.join(dir, `media-${crypto.randomBytes(5).toString("hex")}.tmp`);
+  await fs.writeFile(temporary, JSON.stringify(media, null, 2), { mode: 0o640 }); await fs.rename(temporary, path.join(dir, "media.json"));
+}
 export async function roomManifest(room) {
   const dir = path.join(roomRoot, room);
   const files = await fs.readdir(dir).catch(() => []);
   const floorplan = files.find((name) => name.startsWith("floorplan."));
   const model = files.includes("model.glb") ? "model.glb" : null;
   const renderFiles = files.filter((name) => /^render-[a-f0-9]{16}\.(jpg|jpeg|png|webp)$/.test(name));
+  const photoFiles = files.filter((name) => /^photo-[a-f0-9]{16}\.(jpg|jpeg|png|webp)$/.test(name));
   const datedRenders = await Promise.all(renderFiles.map(async (name) => ({ name, modified: (await fs.stat(path.join(dir, name))).mtimeMs })));
   const floorplanModified = floorplan ? (await fs.stat(path.join(dir, floorplan))).mtimeMs : null;
   const modelModified = model ? (await fs.stat(path.join(dir, model))).mtimeMs : null;
+  const metadata = await readRoomMedia(room);
+  const photos = await Promise.all(photoFiles.map(async (name) => {
+    const modified = (await fs.stat(path.join(dir, name))).mtimeMs, saved = metadata.find((item) => item.filename === name) || {};
+    return { id: saved.id || path.parse(name).name, roomId: room, url: publicRoomAsset(room, name, modified), thumbnailUrl: publicRoomAsset(room, name, modified), type: saved.type || "other", date: saved.date || new Date(modified).toISOString().slice(0, 10), comment: saved.comment || "", createdAt: saved.createdAt || new Date(modified).toISOString() };
+  }));
   return {
     floorplanUrl: floorplan ? publicRoomAsset(room, floorplan, floorplanModified) : null,
     modelUrl: model ? publicRoomAsset(room, model, modelModified) : null,
-    renderUrls: datedRenders.sort((a, b) => a.modified - b.modified || a.name.localeCompare(b.name)).map(({ name, modified }) => publicRoomAsset(room, name, modified))
+    renderUrls: datedRenders.sort((a, b) => a.modified - b.modified || a.name.localeCompare(b.name)).map(({ name, modified }) => publicRoomAsset(room, name, modified)),
+    photos: photos.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    photoUrls: photos.map(({ url }) => url)
   };
 }
 app.get("/api/rooms/:room", async (req, res) => {
@@ -65,7 +82,7 @@ app.get("/api/rooms/:room", async (req, res) => {
   res.json(await roomManifest(req.params.room));
 });
 app.get("/api/rooms/:room/assets/:filename", (req, res) => {
-  if (!roomIds.has(req.params.room) || !/^(floorplan\.(jpg|jpeg|png|webp)|model\.glb|render-[a-f0-9]{16}\.(jpg|jpeg|png|webp))$/.test(req.params.filename)) return res.status(404).end();
+  if (!roomIds.has(req.params.room) || !/^(floorplan\.(jpg|jpeg|png|webp)|model\.glb|(render|photo)-[a-f0-9]{16}\.(jpg|jpeg|png|webp))$/.test(req.params.filename)) return res.status(404).end();
   res.set("Cache-Control", "public, max-age=3600");
   res.sendFile(req.params.filename, { root: path.join(roomRoot, req.params.room) }, (error) => { if (error && !res.headersSent) res.status(404).end(); });
 });
@@ -73,7 +90,7 @@ app.post("/api/rooms/:room/assets/:kind", requireUploadPassword, roomUpload.sing
   try {
     const { room, kind } = req.params;
     if (!roomIds.has(room)) return res.status(404).json({ error: "Комната не найдена." });
-    if (!req.file || !["floorplan", "render", "model"].includes(kind)) return res.status(400).json({ error: "Выберите тип материала и файл." });
+    if (!req.file || !["floorplan", "render", "photo", "model"].includes(kind)) return res.status(400).json({ error: "Выберите тип материала и файл." });
     const ext = path.extname(req.file.originalname).toLowerCase();
     const isImage = imageExtensions.has(ext) && imageMime.test(req.file.mimetype);
     const isGlb = ext === ".glb" && req.file.buffer.subarray(0, 4).toString("ascii") === "glTF";
@@ -85,14 +102,19 @@ app.post("/api/rooms/:room/assets/:kind", requireUploadPassword, roomUpload.sing
       for (const old of await fs.readdir(dir)) if (old.startsWith("floorplan.")) await fs.rm(path.join(dir, old), { force: true });
       filename = `floorplan${ext}`;
     } else if (kind === "model") filename = "model.glb";
-    else filename = `render-${crypto.randomBytes(8).toString("hex")}${ext}`;
+    else filename = `${kind}-${crypto.randomBytes(8).toString("hex")}${ext}`;
     await fs.writeFile(path.join(dir, filename), req.file.buffer, { mode: 0o640 });
+    if (kind === "photo") {
+      const allowedTypes = new Set(["construction", "completed", "defect", "control", "other"]), media = await readRoomMedia(room), createdAt = new Date().toISOString();
+      media.push({ id: path.parse(filename).name, filename, roomId: room, type: allowedTypes.has(req.body.type) ? req.body.type : "other", date: /^\d{4}-\d{2}-\d{2}$/.test(req.body.date || "") ? req.body.date : createdAt.slice(0, 10), comment: String(req.body.comment || "").trim().slice(0, 500), createdAt });
+      await writeRoomMedia(room, media);
+    }
     res.status(201).json(await roomManifest(room));
   } catch (error) { next(error); }
 });
 export async function deleteRoomAsset(room, filename) {
-  if (!roomIds.has(room) || !/^(floorplan\.(jpg|jpeg|png|webp)|model\.glb|render-[a-f0-9]{16}\.(jpg|jpeg|png|webp))$/.test(filename)) return false;
-  try { await fs.unlink(path.join(roomRoot, room, filename)); return true; } catch (error) { if (error.code === "ENOENT") return false; throw error; }
+  if (!roomIds.has(room) || !/^(floorplan\.(jpg|jpeg|png|webp)|model\.glb|(render|photo)-[a-f0-9]{16}\.(jpg|jpeg|png|webp))$/.test(filename)) return false;
+  try { await fs.unlink(path.join(roomRoot, room, filename)); if (filename.startsWith("photo-")) await writeRoomMedia(room, (await readRoomMedia(room)).filter((item) => item.filename !== filename)); return true; } catch (error) { if (error.code === "ENOENT") return false; throw error; }
 }
 app.delete("/api/rooms/:room/assets/:filename", requireUploadPassword, async (req, res, next) => {
   try {
@@ -129,7 +151,8 @@ app.post("/api/notes", requireUploadPassword, async (req, res, next) => {
   try {
     const text = typeof req.body.text === "string" ? req.body.text.trim() : "";
     if (!text || text.length > 500) return res.status(400).json({ error: "Заметка должна содержать от 1 до 500 символов." });
-    const note = { id: crypto.randomBytes(12).toString("hex"), text, createdAt: new Date().toISOString() };
+    const roomId = roomIds.has(req.body.roomId) ? req.body.roomId : null;
+    const note = { id: crypto.randomBytes(12).toString("hex"), text, roomId, status: "new", createdAt: new Date().toISOString() };
     await updateNotes((notes) => [...notes, note]);
     res.status(201).json(note);
   } catch (error) { next(error); }

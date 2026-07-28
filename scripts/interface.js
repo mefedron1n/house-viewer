@@ -1,6 +1,6 @@
 (() => {
   const API_URL = window.MODEL_API_URL || "http://localhost:3001";
-  const roomNames = { kitchen: "Кухня-гостиная", bedroom: "Спальня", bathroom: "Санузел", hall: "Прихожая", terrace: "Терраса" };
+  const roomNames = Object.fromEntries(window.HOUSE_ROOMS.map(({ id, name }) => [id, name]));
   const placeholder = "./images/room-placeholder.svg";
   let roomData = {}, notes = [], activeNoteId = null;
   const absoluteUrl = (url) => url ? `${API_URL}${url}` : null;
@@ -54,17 +54,19 @@
     setTimeout(() => { setMode("3d"); window.focusRoom?.(tile.dataset.roomFocus); }, 280);
   });
 
-  const lightbox = document.getElementById("lightbox"), lightboxImage = lightbox.querySelector(".lightbox-image");
+  const lightbox = document.getElementById("lightbox"), lightboxImage = lightbox.querySelector(".lightbox-image"); let lightboxItems = [], lightboxIndex = 0, touchStartX = 0;
+  function showLightboxItem(index) { if (!lightboxItems.length) return; lightboxIndex = (index + lightboxItems.length) % lightboxItems.length; const item = lightboxItems[lightboxIndex]; lightboxImage.src = item.dataset.image; lightboxImage.alt = item.dataset.caption; document.getElementById("lightbox-caption").textContent = item.dataset.caption; document.getElementById("lightbox-counter").textContent = `${lightboxIndex + 1} / ${lightboxItems.length}`; }
   document.addEventListener("click", (event) => {
     const imageButton = event.target.closest("[data-image]");
     if (!imageButton) return;
-    lightboxImage.src = imageButton.dataset.image;
-    lightboxImage.alt = imageButton.dataset.caption;
-    document.getElementById("lightbox-caption").textContent = imageButton.dataset.caption;
+    lightboxItems = [...document.querySelectorAll("[data-image]")].filter((item) => item.offsetParent !== null); lightboxIndex = lightboxItems.indexOf(imageButton); showLightboxItem(lightboxIndex);
     lightbox.showModal();
   });
-  lightbox.querySelector(".lightbox-close").addEventListener("click", () => lightbox.close());
+  document.getElementById("lightbox-close").addEventListener("click", () => lightbox.close());
+  document.getElementById("lightbox-prev").addEventListener("click", () => showLightboxItem(lightboxIndex - 1)); document.getElementById("lightbox-next").addEventListener("click", () => showLightboxItem(lightboxIndex + 1));
   lightbox.addEventListener("click", (event) => { if (event.target === lightbox) lightbox.close(); });
+  lightboxImage.addEventListener("touchstart", (event) => { touchStartX = event.changedTouches[0].clientX; }, { passive:true }); lightboxImage.addEventListener("touchend", (event) => { const distance = event.changedTouches[0].clientX - touchStartX; if (Math.abs(distance) > 45) showLightboxItem(lightboxIndex + (distance < 0 ? 1 : -1)); }, { passive:true });
+  document.addEventListener("keydown", (event) => { if (!lightbox.open) return; if (event.key === "ArrowLeft") showLightboxItem(lightboxIndex - 1); if (event.key === "ArrowRight") showLightboxItem(lightboxIndex + 1); });
 
   function numberFromId(id, offset) {
     const fragment = id.slice(offset, offset + 6) || "1";
@@ -116,7 +118,7 @@
     const text = document.getElementById("note-text"), password = document.getElementById("notes-password"), submit = document.getElementById("note-submit"), status = document.getElementById("notes-status");
     submit.disabled = true; status.textContent = "Сохраняем замечание…";
     try {
-      const response = await fetch(`${API_URL}/api/notes`, { method: "POST", headers: { "Content-Type": "application/json", "X-Upload-Password": password.value }, body: JSON.stringify({ text: text.value }) });
+      const response = await fetch(`${API_URL}/api/notes`, { method: "POST", headers: { "Content-Type": "application/json", "X-Upload-Password": password.value }, body: JSON.stringify({ text: text.value, roomId: window.NOTE_ROOM_ID || null }) });
       const note = await response.json(); if (!response.ok) throw new Error(note.error || "Не удалось добавить замечание.");
       notes.push(note); text.value = ""; activeNoteId = note.id; renderPins(); status.textContent = "Пин добавлен и виден всем пользователям.";
     } catch (error) { status.textContent = error.message; } finally { submit.disabled = false; }

@@ -40,12 +40,37 @@
     .project-meta span { padding:6px 8px; background:rgba(241,245,249,.88); border-radius:8px; }
     .updated { margin:12px 0 0; color:#94a3b8; font-size:11px; }
 
-    .tools { position:absolute; z-index:14; top:94px; right:18px; display:flex; flex-direction:column; gap:7px; padding:7px; background:var(--panel); border:1px solid rgba(255,255,255,.9); border-radius:17px; box-shadow:0 12px 36px rgba(15,23,42,.11); backdrop-filter:blur(20px); }
+    .tools { position:absolute; z-index:14; top:94px; right:310px; display:flex; flex-direction:column; gap:7px; padding:7px; background:var(--panel); border:1px solid rgba(255,255,255,.9); border-radius:17px; box-shadow:0 12px 36px rgba(15,23,42,.11); backdrop-filter:blur(20px); }
     .tool { position:relative; display:grid; width:44px; height:44px; padding:0; color:#475569; background:transparent; border:0; border-radius:11px; cursor:pointer; place-items:center; transition:.2s ease; }
     .tool:hover,.tool.active { color:var(--accent); background:var(--accent-soft); }
     .tool::after { content:attr(data-label); position:absolute; top:50%; right:calc(100% + 10px); padding:7px 9px; color:#fff; background:#111827; border-radius:8px; font-size:11px; white-space:nowrap; opacity:0; pointer-events:none; transform:translate(5px,-50%); transition:.18s ease; }
     .tool:hover::after { opacity:1; transform:translate(0,-50%); }
     .tool .icon { width:19px; }
+    .rooms-sidebar { position:absolute; z-index:18; top:88px; right:14px; bottom:14px; width:280px; display:flex; flex-direction:column; padding:16px; background:var(--panel); border:1px solid rgba(255,255,255,.95); border-radius:20px; box-shadow:var(--shadow); backdrop-filter:blur(22px); transition:.25s ease; }
+    .rooms-sidebar.collapsed { width:62px; padding:10px; }
+    .rooms-sidebar.collapsed .sidebar-title,.rooms-sidebar.collapsed .room-link-copy { display:none; }
+    .sidebar-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px; }
+    .sidebar-head h2 { margin:0; font-size:17px; }
+    .room-links { display:grid; gap:7px; overflow:auto; }
+    .room-link { display:flex; min-height:58px; align-items:center; gap:11px; padding:8px; background:rgba(255,255,255,.68); border:1px solid transparent; border-radius:13px; cursor:pointer; text-align:left; transition:.2s ease; }
+    .room-link:hover,.room-link.active { color:var(--accent); background:var(--accent-soft); border-color:rgba(37,99,235,.13); }
+    .room-link-icon { display:grid; flex:0 0 38px; height:38px; background:#eef2f7; border-radius:10px; place-items:center; }
+    .room-link-copy { min-width:0; flex:1; }
+    .room-link-copy strong,.room-link-copy small { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .room-link-copy strong { margin-bottom:3px; font-size:13px; }.room-link-copy small { color:var(--muted); font-size:10px; }
+    .rooms-mobile-button { display:none; position:absolute; z-index:20; right:12px; bottom:88px; min-height:46px; padding:0 15px; color:#fff; background:var(--accent); border:0; border-radius:13px; box-shadow:0 10px 24px rgba(37,99,235,.25); font-weight:750; }
+    .room-page { position:absolute; z-index:30; inset:88px 14px 14px; display:none; overflow:auto; padding:34px; background:var(--bg); border-radius:24px; animation:panel-in .28s ease; }
+    .room-page.active { display:block; }
+    .room-page-inner { width:min(1120px,100%); margin:auto; }
+    .room-back { padding:0; color:var(--accent); background:transparent; border:0; cursor:pointer; font-weight:700; }
+    .breadcrumbs { margin:18px 0 8px; color:var(--muted); font-size:12px; }.room-title-row { display:flex; align-items:end; justify-content:space-between; gap:20px; }.room-title-row h1 { margin:0; font-size:38px; letter-spacing:-.045em; }
+    .room-stats { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 22px; }.room-stats span { padding:7px 10px; color:#475569; background:#fff; border:1px solid var(--line); border-radius:9px; font-size:12px; }
+    .room-tabs { display:flex; gap:5px; margin-bottom:18px; padding:5px; overflow-x:auto; background:#fff; border:1px solid var(--line); border-radius:14px; scrollbar-width:none; }.room-tab { min-height:40px; padding:0 14px; white-space:nowrap; color:var(--muted); background:transparent; border:0; border-radius:10px; cursor:pointer; font-weight:700; }.room-tab.active { color:var(--accent); background:var(--accent-soft); }
+    .room-tab-panel { display:none; animation:panel-in .22s ease; }.room-tab-panel.active { display:block; }
+    .overview-grid { display:grid; grid-template-columns:1.45fr 1fr; gap:16px; }.overview-card { padding:18px; background:#fff; border:1px solid var(--line); border-radius:17px; }.overview-card h3 { margin:0 0 12px; }.overview-hero { position:relative; min-height:340px; overflow:hidden; padding:0; }.overview-hero img { width:100%; height:100%; min-height:340px; object-fit:cover; }.overview-hero .primary { position:absolute; left:18px; bottom:18px; }
+    .photo-toolbar { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:16px; }.photo-toolbar h2 { margin:0; }.photo-filters { display:flex; gap:6px; margin-bottom:14px; overflow-x:auto; }.photo-filter { min-height:36px; padding:0 11px; white-space:nowrap; background:#fff; border:1px solid var(--line); border-radius:9px; cursor:pointer; }.photo-filter.active { color:var(--accent); background:var(--accent-soft); border-color:#bfdbfe; }
+    .room-model-frame { width:100%; height:min(65vh,650px); border:0; border-radius:18px; background:#eef2f7; }
+    .upload-modal { width:min(760px,calc(100% - 24px)); padding:0; color:var(--text); background:#fff; border:0; border-radius:20px; }.upload-modal-form { padding:24px; }.upload-modal h2 { margin:0 0 5px; }.upload-modal-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:18px 0; }.field { display:grid; gap:6px; color:#475569; font-size:12px; font-weight:700; }.field.full { grid-column:1/-1; }.field input,.field select,.field textarea { width:100%; padding:11px 12px; color:var(--text); background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; outline:0; font-weight:400; }.photo-drop { padding:22px; border:1px dashed #93a8c0; border-radius:13px; text-align:center; cursor:pointer; }.photo-drop.dragging { color:var(--accent); background:var(--accent-soft); border-color:var(--accent); }.photo-previews { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:10px; }.photo-preview { position:relative; overflow:hidden; aspect-ratio:1; border-radius:10px; }.photo-preview img { width:100%; height:100%; object-fit:cover; }.preview-remove { position:absolute; top:5px; right:5px; width:26px; height:26px; padding:0; color:#fff; background:rgba(15,23,42,.72); border:0; border-radius:50%; cursor:pointer; }.modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:18px; }.upload-state { min-height:18px; margin:10px 0 0; color:var(--muted); font-size:12px; }
 
     .mode-panel { position:absolute; z-index:25; inset:88px 14px 14px; display:none; overflow:auto; padding:clamp(20px,4vw,48px); background:rgba(246,247,251,.96); border:1px solid rgba(255,255,255,.95); border-radius:24px; box-shadow:var(--shadow); backdrop-filter:blur(22px); animation:panel-in .32s ease both; }
     .mode-panel.active { display:block; }
@@ -135,6 +160,7 @@
     @keyframes progress { from { transform:translateX(-120%); } to { transform:translateX(360%); } }
     @keyframes panel-in { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
     @keyframes rise { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+    @media (max-width:1100px) { .rooms-sidebar { transform:translateX(calc(100% + 20px)); }.rooms-sidebar.open { transform:none; }.rooms-mobile-button { display:block; }.tools { right:18px; top:142px; } }
     @media (max-width:980px) { .nav-button span { display:none; } .nav-button { width:42px; padding:0; justify-content:center; } .room-grid,.gallery-grid,.docs-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
     @media (max-width:700px) {
       .topbar { top:max(8px,env(safe-area-inset-top)); left:8px; right:8px; height:54px; padding:6px 7px 6px 12px; border-radius:15px; }
@@ -150,6 +176,7 @@
       .mobile-nav .nav-button { display:flex; width:auto; min-width:50px; height:52px; flex-direction:column; gap:2px; padding:5px 8px; font-size:10px; }
       .mobile-nav .nav-button span { display:block; } .mobile-nav .nav-button .icon { width:19px; }
       .drawer { top:70px; right:8px; width:calc(100% - 16px); }
+      .room-page { inset:70px 8px calc(76px + env(safe-area-inset-bottom)); padding:20px 12px; border-radius:18px; }.room-title-row h1 { font-size:30px; }.overview-grid { grid-template-columns:1fr; }.overview-hero,.overview-hero img { min-height:250px; }.upload-modal { width:calc(100% - 12px); max-height:96vh; }.upload-modal-form { padding:18px 14px; }.upload-modal-grid { grid-template-columns:1fr; }.field.full { grid-column:auto; }.photo-previews { grid-template-columns:repeat(3,1fr); }.rooms-sidebar { top:70px; right:8px; bottom:80px; width:min(320px,calc(100% - 16px)); }.rooms-mobile-button { bottom:88px; }
     }
     @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; animation-duration:.01ms!important; transition-duration:.01ms!important; } }
   </style>
@@ -182,7 +209,12 @@
     <button id="rotate-button" class="tool" data-label="Автооблёт"><svg class="icon"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 8A7 7 0 0 1 18.7 7M17.9 16A7 7 0 0 1 5.3 17"/></svg></button>
   </aside>
 
+  <aside id="rooms-sidebar" class="rooms-sidebar" aria-label="Помещения"><div class="sidebar-head"><h2 class="sidebar-title">Помещения</h2><button id="rooms-collapse" class="icon-button" title="Свернуть панель">‹</button></div><div id="room-links" class="room-links"></div></aside>
+  <button id="rooms-mobile-button" class="rooms-mobile-button" type="button">Комнаты</button>
+
   <article class="project-card"><small>Проект квартиры</small><h1>ЖК Северный</h1><div class="project-meta"><span>95 м²</span><span>3 комнаты</span></div><p class="updated">Обновлено сегодня</p></article>
+
+  <main id="room-page" class="room-page"><div class="room-page-inner"><button id="room-back" class="room-back" type="button">← Назад к квартире</button><p id="room-breadcrumbs" class="breadcrumbs">Главная / Комната</p><div class="room-title-row"><h1 id="room-page-title">Комната</h1></div><div id="room-stats" class="room-stats"></div><nav id="room-tabs" class="room-tabs"><button class="room-tab active" data-room-tab="overview">Обзор</button><button class="room-tab" data-room-tab="3d">3D</button><button class="room-tab" data-room-tab="photos">Фото</button><button class="room-tab" data-room-tab="renders">Рендеры</button><button class="room-tab" data-room-tab="notes">Заметки</button><button class="room-tab" data-room-tab="documents">Документы</button></nav><section id="room-content"></section></div></main>
 
   <section id="panel-plan" class="mode-panel" data-panel="plan"><div class="panel-inner"><header class="panel-head"><div><p class="eyebrow">Навигация по проекту</p><h2>Планировка</h2><p>Выберите помещение — план подсветится, а камера плавно перейдёт к выбранной комнате в 3D.</p></div></header><div id="plan-rooms" class="room-grid"></div></div></section>
   <section id="panel-photos" class="mode-panel" data-panel="photos"><div class="panel-inner"><header class="panel-head"><div><p class="eyebrow">Ход работ</p><h2>Фотографии</h2><p>Материалы сгруппированы по помещениям. Нажмите на снимок для полноэкранного просмотра.</p></div></header><div id="photos-content"></div></div></section>
@@ -201,11 +233,14 @@
   </nav>
 
   <div id="room-card" class="room-card"><h2 id="room-name">Помещение</h2><p id="room-description"></p></div>
-  <dialog id="lightbox"><img class="lightbox-image" alt=""><div class="lightbox-footer"><span id="lightbox-caption"></span><button class="lightbox-close" aria-label="Закрыть">×</button></div></dialog>
+  <dialog id="lightbox"><img class="lightbox-image" alt=""><div class="lightbox-footer"><button id="lightbox-prev" class="lightbox-close" aria-label="Предыдущее фото">‹</button><span id="lightbox-caption"></span><span id="lightbox-counter"></span><button id="lightbox-next" class="lightbox-close" aria-label="Следующее фото">›</button><button id="lightbox-close" class="lightbox-close" aria-label="Закрыть">×</button></div></dialog>
+  <dialog id="photo-upload-modal" class="upload-modal"><form id="photo-upload-form" class="upload-modal-form"><h2>Загрузить фотографии</h2><p id="upload-room-label" class="status"></p><div class="upload-modal-grid"><label class="field">Тип фотографии<select id="photo-type"><option value="construction">Ход строительства</option><option value="completed">Готовая работа</option><option value="defect">Дефект или замечание</option><option value="control">Контрольный снимок</option><option value="other">Другое</option></select></label><label class="field">Дата съёмки<input id="photo-date" type="date" required></label><label class="field full">Комментарий<textarea id="photo-comment" rows="2" maxlength="500" placeholder="Например: установлены кухонные шкафы"></textarea></label><div class="field full"><span>Файлы</span><div id="photo-drop" class="photo-drop"><strong>Выбрать фото или перетащить сюда</strong><p>JPG, JPEG, PNG, WEBP · до 200 МБ на файл</p><input id="photo-files" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden></div><div id="photo-previews" class="photo-previews"></div></div></div><p id="photo-upload-state" class="upload-state" aria-live="polite"></p><div class="modal-actions"><button id="photo-upload-cancel" class="secondary" type="button">Отмена</button><button id="photo-upload-submit" class="primary" type="submit">Загрузить</button></div></form></dialog>
   <div id="loading-screen"><div class="loading-brand"><span class="brand-mark"><svg class="icon"><path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9"/></svg></span>House Reviewer</div><div class="loader"></div><div id="loading-text">Загрузка проекта...</div><div id="error-message"></div></div>
 </div>
 <script>window.MODEL_API_URL="https://house-viewer.onrender.com";</script>
+<script src="./scripts/rooms-data.js"></script>
 <script type="module" src="./scripts/app.js"></script>
 <script src="./scripts/interface.js"></script>
+<script src="./scripts/rooms.js"></script>
 </body>
 </html>

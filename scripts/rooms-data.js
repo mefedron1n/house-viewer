@@ -1,0 +1,7 @@
+window.HOUSE_ROOMS = [
+  { id:"kitchen", slug:"kitchen", name:"Кухня-гостиная", area:28.4, cameraPosition:[4,3,6], cameraTarget:[1,1,0] },
+  { id:"bedroom", slug:"bedroom", name:"Спальня", area:16.2, cameraPosition:[-4,2.5,5], cameraTarget:[-1,1,0] },
+  { id:"bathroom", slug:"bathroom", name:"Санузел", area:6.8, cameraPosition:[-3,2.4,-4], cameraTarget:[-1,1,-1] },
+  { id:"hall", slug:"hallway", name:"Прихожая", area:10.5, cameraPosition:[3,2.5,4], cameraTarget:[0,1,0] },
+  { id:"terrace", slug:"balcony", name:"Балкон / терраса", area:14.1, cameraPosition:[5,3,-4], cameraTarget:[2,1,-1] }
+];
