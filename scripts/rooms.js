@@ -1,6 +1,6 @@
 (() => {
-  const API_URL = window.MODEL_API_URL || "http://localhost:3001", rooms = window.HOUSE_ROOMS;
-  const roomBySlug = Object.fromEntries(rooms.map((room) => [room.slug, room])), roomById = Object.fromEntries(rooms.map((room) => [room.id, room]));
+  const API_URL = window.MODEL_API_URL || "http://localhost:3001"; let rooms = window.HOUSE_ROOMS, roomBySlug = {}, roomById = {};
+  const indexRooms = () => { roomBySlug = Object.fromEntries(rooms.map((room) => [room.slug, room])); roomById = Object.fromEntries(rooms.map((room) => [room.id, room])); }; indexRooms();
   const page = document.getElementById("room-page"), content = document.getElementById("room-content"), sidebar = document.getElementById("rooms-sidebar");
   let manifests = {}, notes = [], selectedRoom = null, selectedTab = "overview", photoFilter = "all", selectedFiles = [];
   const absolute = (url) => url ? `${API_URL}${url}` : "./images/room-placeholder.svg";
@@ -9,6 +9,7 @@
   const navigate = (path, replace = false) => { const history = window.top.history; history[replace ? "replaceState" : "pushState"]({}, "", path); if (path.startsWith("/rooms/")) openRoom(roomBySlug[path.split("/")[2]], false); else closeRoom(false); };
 
   async function loadData() {
+    try { const catalogResponse = await fetch(`${API_URL}/api/rooms`, { cache:"no-store" }); if (catalogResponse.ok) { rooms = await catalogResponse.json(); indexRooms(); window.HOUSE_ROOMS = rooms; const routeSlug = currentRoute().split("/")[2]; if (!selectedRoom && routeSlug && roomBySlug[routeSlug]) openRoom(roomBySlug[routeSlug], false); } } catch { /* Используем встроенный список, если API временно недоступен. */ }
     const results = await Promise.all(rooms.map(async (room) => { try { const response = await fetch(`${API_URL}/api/rooms/${room.id}`, { cache:"no-store" }); return [room.id, response.ok ? await response.json() : {}]; } catch { return [room.id, {}]; } }));
     manifests = Object.fromEntries(results);
     try { const response = await fetch(`${API_URL}/api/notes`, { cache:"no-store" }); notes = response.ok ? await response.json() : []; } catch { notes = []; }
@@ -48,6 +49,7 @@
   });
   document.getElementById("room-back").onclick = () => closeRoom(); document.querySelector(".brand").style.cursor = "pointer"; document.querySelector(".brand").onclick = () => closeRoom();
   document.getElementById("rooms-mobile-button").onclick = () => sidebar.classList.toggle("open"); document.getElementById("rooms-collapse").onclick = () => { sidebar.classList.toggle("collapsed"); localStorage.setItem("roomsCollapsed", sidebar.classList.contains("collapsed") ? "1" : "0"); }; if (localStorage.getItem("roomsCollapsed") === "1") sidebar.classList.add("collapsed");
+  document.getElementById("add-room-button").onclick = async () => { const name = prompt("Название нового помещения:")?.trim(); if (!name) return; const areaText = prompt("Площадь помещения в м² (можно оставить пустой):", "") || "0", area = Number(areaText.replace(",", ".")); if (!Number.isFinite(area) || area < 0) return alert("Укажите корректную площадь."); const password = prompt("Введите пароль, чтобы добавить помещение:") || ""; if (!password) return; try { const response = await fetch(`${API_URL}/api/rooms`, { method:"POST", headers:{ "Content-Type":"application/json", "X-Upload-Password":password }, body:JSON.stringify({ name, area }) }); const room = await response.json(); if (!response.ok) throw new Error(room.error || "Не удалось добавить помещение."); rooms.push(room); indexRooms(); manifests[room.id] = { photos:[], renderUrls:[] }; renderSidebar(); openRoom(room); } catch (error) { alert(error.message || "Потеря соединения."); } };
 
   const modal = document.getElementById("photo-upload-modal"), filesInput = document.getElementById("photo-files"), drop = document.getElementById("photo-drop");
   function openUpload() { selectedFiles = []; renderPreviews(); document.getElementById("upload-room-label").textContent = `Помещение: ${selectedRoom.name}`; document.getElementById("photo-date").value = new Date().toISOString().slice(0,10); document.getElementById("photo-upload-state").textContent = ""; modal.showModal(); }

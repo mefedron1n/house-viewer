@@ -48,17 +48,18 @@
     .tool .icon { width:19px; }
     .rooms-sidebar { position:absolute; z-index:18; top:88px; right:14px; bottom:14px; width:280px; display:flex; flex-direction:column; padding:16px; background:var(--panel); border:1px solid rgba(255,255,255,.95); border-radius:20px; box-shadow:var(--shadow); backdrop-filter:blur(22px); transition:.25s ease; }
     .rooms-sidebar.collapsed { width:62px; padding:10px; }
-    .rooms-sidebar.collapsed .sidebar-title,.rooms-sidebar.collapsed .room-link-copy { display:none; }
+    .rooms-sidebar.collapsed .sidebar-title,.rooms-sidebar.collapsed .room-link-copy,.rooms-sidebar.collapsed .add-room-button { display:none; }
     .sidebar-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px; }
     .sidebar-head h2 { margin:0; font-size:17px; }
     .room-links { display:grid; gap:7px; overflow:auto; }
+    .add-room-button { width:100%; min-height:44px; margin-top:auto; color:var(--accent); background:var(--accent-soft); border:1px dashed #93b4f8; border-radius:11px; cursor:pointer; font-weight:750; }
     .room-link { display:flex; min-height:58px; align-items:center; gap:11px; padding:8px; background:rgba(255,255,255,.68); border:1px solid transparent; border-radius:13px; cursor:pointer; text-align:left; transition:.2s ease; }
     .room-link:hover,.room-link.active { color:var(--accent); background:var(--accent-soft); border-color:rgba(37,99,235,.13); }
     .room-link-icon { display:grid; flex:0 0 38px; height:38px; background:#eef2f7; border-radius:10px; place-items:center; }
     .room-link-copy { min-width:0; flex:1; }
     .room-link-copy strong,.room-link-copy small { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .room-link-copy strong { margin-bottom:3px; font-size:13px; }.room-link-copy small { color:var(--muted); font-size:10px; }
-    .rooms-mobile-button { display:none; position:absolute; z-index:20; right:12px; bottom:88px; min-height:46px; padding:0 15px; color:#fff; background:var(--accent); border:0; border-radius:13px; box-shadow:0 10px 24px rgba(37,99,235,.25); font-weight:750; }
+    .rooms-mobile-button { display:none; position:absolute; z-index:20; top:14px; left:-104px; min-height:46px; padding:0 15px; color:#fff; background:var(--accent); border:0; border-radius:13px 0 0 13px; box-shadow:0 10px 24px rgba(37,99,235,.25); font-weight:750; }
     .room-page { position:absolute; z-index:30; inset:88px 14px 14px; display:none; overflow:auto; padding:34px; background:var(--bg); border-radius:24px; animation:panel-in .28s ease; }
     .room-page.active { display:block; }
     .room-page-inner { width:min(1120px,100%); margin:auto; }
@@ -176,7 +177,7 @@
       .mobile-nav .nav-button { display:flex; width:auto; min-width:50px; height:52px; flex-direction:column; gap:2px; padding:5px 8px; font-size:10px; }
       .mobile-nav .nav-button span { display:block; } .mobile-nav .nav-button .icon { width:19px; }
       .drawer { top:70px; right:8px; width:calc(100% - 16px); }
-      .room-page { inset:70px 8px calc(76px + env(safe-area-inset-bottom)); padding:20px 12px; border-radius:18px; }.room-title-row h1 { font-size:30px; }.overview-grid { grid-template-columns:1fr; }.overview-hero,.overview-hero img { min-height:250px; }.upload-modal { width:calc(100% - 12px); max-height:96vh; }.upload-modal-form { padding:18px 14px; }.upload-modal-grid { grid-template-columns:1fr; }.field.full { grid-column:auto; }.photo-previews { grid-template-columns:repeat(3,1fr); }.rooms-sidebar { top:70px; right:8px; bottom:80px; width:min(320px,calc(100% - 16px)); }.rooms-mobile-button { bottom:88px; }
+      .room-page { inset:70px 8px calc(76px + env(safe-area-inset-bottom)); padding:20px 12px; border-radius:18px; }.room-title-row h1 { font-size:30px; }.overview-grid { grid-template-columns:1fr; }.overview-hero,.overview-hero img { min-height:250px; }.upload-modal { width:calc(100% - 12px); max-height:96vh; }.upload-modal-form { padding:18px 14px; }.upload-modal-grid { grid-template-columns:1fr; }.field.full { grid-column:auto; }.photo-previews { grid-template-columns:repeat(3,1fr); }.rooms-sidebar { top:70px; right:8px; bottom:80px; width:min(320px,calc(100% - 16px)); }
     }
     @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; animation-duration:.01ms!important; transition-duration:.01ms!important; } }
   </style>
@@ -209,8 +210,7 @@
     <button id="rotate-button" class="tool" data-label="Автооблёт"><svg class="icon"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 8A7 7 0 0 1 18.7 7M17.9 16A7 7 0 0 1 5.3 17"/></svg></button>
   </aside>
 
-  <aside id="rooms-sidebar" class="rooms-sidebar" aria-label="Помещения"><div class="sidebar-head"><h2 class="sidebar-title">Помещения</h2><button id="rooms-collapse" class="icon-button" title="Свернуть панель">‹</button></div><div id="room-links" class="room-links"></div></aside>
-  <button id="rooms-mobile-button" class="rooms-mobile-button" type="button">Комнаты</button>
+  <aside id="rooms-sidebar" class="rooms-sidebar" aria-label="Помещения"><button id="rooms-mobile-button" class="rooms-mobile-button" type="button">Комнаты</button><div class="sidebar-head"><h2 class="sidebar-title">Помещения</h2><button id="rooms-collapse" class="icon-button" title="Свернуть панель">‹</button></div><div id="room-links" class="room-links"></div><button id="add-room-button" class="add-room-button" type="button">+ Добавить помещение</button></aside>
 
   <article class="project-card"><small>Проект квартиры</small><h1>ЖК Северный</h1><div class="project-meta"><span>95 м²</span><span>3 комнаты</span></div><p class="updated">Обновлено сегодня</p></article>
 

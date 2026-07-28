@@ -15,7 +15,14 @@ const ttlMs = Number(process.env.MODEL_TTL_HOURS || 24) * 3600_000;
 const uploadPassword = process.env.UPLOAD_PASSWORD || "test123";
 const roomRoot = path.join(root, "rooms");
 const notesFile = path.join(root, "site-notes.json");
-const roomIds = new Set(["kitchen", "bedroom", "bathroom", "hall", "terrace"]);
+const roomsFile = path.join(root, "rooms.json");
+const defaultRooms = [
+  { id: "kitchen", slug: "kitchen", name: "Кухня-гостиная", area: 28.4 }, { id: "bedroom", slug: "bedroom", name: "Спальня", area: 16.2 },
+  { id: "bathroom", slug: "bathroom", name: "Санузел", area: 6.8 }, { id: "hall", slug: "hallway", name: "Прихожая", area: 10.5 }, { id: "terrace", slug: "balcony", name: "Балкон / терраса", area: 14.1 }
+];
+const roomCatalog = new Map(defaultRooms.map((room) => [room.id, room]));
+try { const savedRooms = JSON.parse(await fs.readFile(roomsFile, "utf8")); if (Array.isArray(savedRooms)) savedRooms.forEach((room) => room?.id && room?.slug && roomCatalog.set(room.id, room)); } catch (error) { if (error.code !== "ENOENT" && !(error instanceof SyntaxError)) throw error; }
+const roomIds = new Set(roomCatalog.keys());
 const jobs = new Map(); let running = 0;
 const safeId = (id) => /^[a-f0-9]{32}$/.test(id || "") ? id : null;
 const stage = (job, status, text) => Object.assign(job, { status, stage: text });
@@ -44,6 +51,7 @@ const roomUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize:
 const imageExtensions = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 const imageMime = /^image\/(jpeg|png|webp)$/;
 const publicRoomAsset = (room, filename, version) => `/api/rooms/${room}/assets/${encodeURIComponent(filename)}${version ? `?v=${Math.trunc(version)}` : ""}`;
+async function saveRooms() { await fs.mkdir(root, { recursive: true }); const temporary = `${roomsFile}.${crypto.randomBytes(5).toString("hex")}.tmp`; await fs.writeFile(temporary, JSON.stringify([...roomCatalog.values()], null, 2), { mode: 0o640 }); await fs.rename(temporary, roomsFile); }
 async function readRoomMedia(room) {
   try { const value = JSON.parse(await fs.readFile(path.join(roomRoot, room, "media.json"), "utf8")); return Array.isArray(value) ? value : []; }
   catch (error) { if (error.code === "ENOENT" || error instanceof SyntaxError) return []; throw error; }
@@ -76,6 +84,17 @@ export async function roomManifest(room) {
     photoUrls: photos.map(({ url }) => url)
   };
 }
+app.get("/api/rooms", (_, res) => { res.set("Cache-Control", "no-store"); res.json([...roomCatalog.values()]); });
+app.post("/api/rooms", requireUploadPassword, async (req, res, next) => {
+  try {
+    const name = typeof req.body.name === "string" ? req.body.name.trim() : "", area = Number(req.body.area || 0);
+    if (!name || name.length > 60 || area < 0 || area > 10000) return res.status(400).json({ error: "Укажите название комнаты и корректную площадь." });
+    const translit = { а:"a",б:"b",в:"v",г:"g",д:"d",е:"e",ё:"e",ж:"zh",з:"z",и:"i",й:"y",к:"k",л:"l",м:"m",н:"n",о:"o",п:"p",р:"r",с:"s",т:"t",у:"u",ф:"f",х:"h",ц:"ts",ч:"ch",ш:"sh",щ:"sch",ы:"y",э:"e",ю:"yu",я:"ya" };
+    const base = [...name.toLowerCase()].map((letter) => translit[letter] || letter).join("").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 34) || "room";
+    let slug = base, suffix = 2; while ([...roomCatalog.values()].some((room) => room.slug === slug)) slug = `${base}-${suffix++}`;
+    const id = slug, room = { id, slug, name, area, createdAt: new Date().toISOString() }; roomCatalog.set(id, room); roomIds.add(id); await saveRooms(); await fs.mkdir(path.join(roomRoot, id), { recursive: true }); res.status(201).json(room);
+  } catch (error) { next(error); }
+});
 app.get("/api/rooms/:room", async (req, res) => {
   if (!roomIds.has(req.params.room)) return res.status(404).json({ error: "Комната не найдена." });
   res.set("Cache-Control", "no-store");
