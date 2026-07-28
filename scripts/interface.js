@@ -10,7 +10,6 @@
     document.querySelectorAll("[data-panel]").forEach((panel) => panel.classList.toggle("active", panel.dataset.panel === mode));
     document.querySelector(".project-card").hidden = mode !== "3d";
     document.querySelector(".tools").hidden = mode !== "3d";
-    document.querySelector(".model-upload-shortcuts").hidden = mode !== "3d";
     if (mode === "3d") window.dispatchEvent(new Event("resize"));
   }
   document.addEventListener("click", (event) => {

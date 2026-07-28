@@ -87,12 +87,12 @@ export async function roomManifest(room) {
 app.get("/api/rooms", (_, res) => { res.set("Cache-Control", "no-store"); res.json([...roomCatalog.values()]); });
 app.post("/api/rooms", requireUploadPassword, async (req, res, next) => {
   try {
-    const name = typeof req.body.name === "string" ? req.body.name.trim() : "", area = Number(req.body.area || 0);
+    const name = typeof req.body.name === "string" ? req.body.name.trim() : "", area = Number(req.body.area || 0), allowedIcons = new Set(["🏠","🛋️","🛏️","🍳","🚿","🚪","💻","🌿"]), icon = allowedIcons.has(req.body.icon) ? req.body.icon : "🏠";
     if (!name || name.length > 60 || area < 0 || area > 10000) return res.status(400).json({ error: "Укажите название комнаты и корректную площадь." });
     const translit = { а:"a",б:"b",в:"v",г:"g",д:"d",е:"e",ё:"e",ж:"zh",з:"z",и:"i",й:"y",к:"k",л:"l",м:"m",н:"n",о:"o",п:"p",р:"r",с:"s",т:"t",у:"u",ф:"f",х:"h",ц:"ts",ч:"ch",ш:"sh",щ:"sch",ы:"y",э:"e",ю:"yu",я:"ya" };
     const base = [...name.toLowerCase()].map((letter) => translit[letter] || letter).join("").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 34) || "room";
     let slug = base, suffix = 2; while ([...roomCatalog.values()].some((room) => room.slug === slug)) slug = `${base}-${suffix++}`;
-    const id = slug, room = { id, slug, name, area, createdAt: new Date().toISOString() }; roomCatalog.set(id, room); roomIds.add(id); await saveRooms(); await fs.mkdir(path.join(roomRoot, id), { recursive: true }); res.status(201).json(room);
+    const id = slug, room = { id, slug, name, area, icon, createdAt: new Date().toISOString() }; roomCatalog.set(id, room); roomIds.add(id); await saveRooms(); await fs.mkdir(path.join(roomRoot, id), { recursive: true }); res.status(201).json(room);
   } catch (error) { next(error); }
 });
 app.get("/api/rooms/:room", async (req, res) => {
