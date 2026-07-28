@@ -12,17 +12,21 @@
     document.querySelector(".tools").hidden = mode !== "3d";
     if (mode === "3d") window.dispatchEvent(new Event("resize"));
   }
+  window.showApartment = () => setMode("3d");
   document.addEventListener("click", (event) => {
     const modeButton = event.target.closest("[data-mode]");
     if (modeButton) setMode(modeButton.dataset.mode);
   });
 
   document.querySelectorAll(".settings-toggle").forEach((button) => button.addEventListener("click", () => document.getElementById("settings-drawer").classList.toggle("open")));
+  const themeButton = document.getElementById("theme-button");
+  function setTheme(dark) { document.documentElement.classList.toggle("dark", dark); themeButton.classList.toggle("active", dark); themeButton.setAttribute("aria-pressed", dark); themeButton.title = dark ? "Светлая тема" : "Тёмная тема"; localStorage.setItem("theme", dark ? "dark" : "light"); window.dispatchEvent(new CustomEvent("theme-changed", { detail:{ dark } })); }
+  setTheme(localStorage.getItem("theme") === "dark" || (!localStorage.getItem("theme") && matchMedia("(prefers-color-scheme:dark)").matches)); themeButton.onclick = () => setTheme(!document.documentElement.classList.contains("dark"));
   document.addEventListener("keydown", (event) => { if (event.key === "Escape") { document.getElementById("settings-drawer").classList.remove("open"); activeNoteId = null; renderPins(); } });
 
   function roomTile(key, room) {
     const image = absoluteUrl(room.floorplanUrl || room.renderUrls?.[0]);
-    return `<button class="room-tile" data-room-focus="${key}" type="button"><span class="room-visual">${image ? `<img src="${image}" alt="Планировка: ${roomNames[key]}">` : `<svg class="icon"><path d="M4 4h16v16H4zM9 4v7h11M9 11v9"/></svg>`}</span><span class="room-copy"><strong>${roomNames[key]}</strong><small>${room.floorplanUrl ? "Открыть план и перейти в 3D" : "Перейти к помещению в 3D"}</small></span></button>`;
+    return `<button class="room-tile" data-room-focus="${key}" type="button"><span class="room-visual">${image ? `<img src="${image}" alt="Планировка: ${roomNames[key]}">` : `<svg class="icon"><path d="M4 4h16v16H4zM9 4v7h11M9 11v9"/></svg>`}</span><span class="room-copy"><strong>${roomNames[key]}</strong><small>Открыть страницу помещения</small></span></button>`;
   }
   function renderPlan() {
     document.getElementById("plan-rooms").innerHTML = Object.entries(roomNames).map(([key]) => roomTile(key, roomData[key] || {})).join("");
@@ -50,8 +54,7 @@
   document.getElementById("plan-rooms").addEventListener("click", (event) => {
     const tile = event.target.closest("[data-room-focus]");
     if (!tile) return;
-    document.querySelectorAll(".room-tile").forEach((roomTile) => roomTile.classList.toggle("selected", roomTile === tile));
-    setTimeout(() => { setMode("3d"); window.focusRoom?.(tile.dataset.roomFocus); }, 280);
+    window.openHouseRoom?.(tile.dataset.roomFocus);
   });
 
   const lightbox = document.getElementById("lightbox"), lightboxImage = lightbox.querySelector(".lightbox-image"); let lightboxItems = [], lightboxIndex = 0, touchStartX = 0;
@@ -73,6 +76,7 @@
     return Number.parseInt(fragment, 16) || 1;
   }
   function pinPosition(note) {
+    if (Number.isFinite(note.position?.x) && Number.isFinite(note.position?.y)) return { left:note.position.x * 100, top:note.position.y * 100 };
     return { left: 8 + numberFromId(note.id, 0) % 78, top: 12 + numberFromId(note.id, 6) % 70 };
   }
   function noteDate(value) {
@@ -110,9 +114,14 @@
     try {
       const response = await fetch(`${API_URL}/api/notes/${remove.dataset.deleteNote}`, { method: "DELETE", headers: { "X-Upload-Password": password } });
       const result = await response.json(); if (!response.ok) throw new Error(result.error || "Не удалось удалить замечание.");
-      notes = result; activeNoteId = null; renderPins(); document.getElementById("notes-status").textContent = "Замечание удалено.";
+      notes = result; activeNoteId = null; renderPins(); window.dispatchEvent(new Event("notes-changed")); document.getElementById("notes-status").textContent = "Замечание удалено.";
     } catch (error) { document.getElementById("notes-status").textContent = error.message; }
   });
+  let draggedPin = null, dragMoved = false;
+  const board = document.getElementById("pin-board");
+  board.addEventListener("pointerdown", (event) => { const pin = event.target.closest("[data-note-id]"); if (!pin) return; draggedPin = pin; dragMoved = false; pin.setPointerCapture(event.pointerId); event.preventDefault(); });
+  board.addEventListener("pointermove", (event) => { if (!draggedPin) return; const bounds = board.getBoundingClientRect(), x = Math.max(0,Math.min(1,(event.clientX-bounds.left)/bounds.width)), y = Math.max(0,Math.min(1,(event.clientY-bounds.top)/bounds.height)); draggedPin.style.left = `${x*100}%`; draggedPin.style.top = `${y*100}%`; draggedPin.dataset.x = x; draggedPin.dataset.y = y; dragMoved = true; });
+  board.addEventListener("pointerup", async () => { if (!draggedPin) return; const pin = draggedPin; draggedPin = null; if (!dragMoved) return; const password = document.getElementById("notes-password").value || window.prompt("Введите пароль, чтобы сохранить положение пина:") || ""; if (!password) return renderPins(); const note = notes.find((item) => item.id === pin.dataset.noteId), position = { x:Number(pin.dataset.x), y:Number(pin.dataset.y), z:note?.position?.z ?? .5 }; try { const response = await fetch(`${API_URL}/api/notes/${pin.dataset.noteId}`, { method:"PATCH", headers:{ "Content-Type":"application/json", "X-Upload-Password":password }, body:JSON.stringify({ position }) }); const updated = await response.json(); if (!response.ok) throw new Error(updated.error || "Не удалось переместить пин."); notes = notes.map((item) => item.id === updated.id ? updated : item); activeNoteId = updated.id; renderPins(); window.dispatchEvent(new Event("notes-changed")); document.getElementById("notes-status").textContent = "Положение пина сохранено."; } catch(error) { renderPins(); document.getElementById("notes-status").textContent = error.message; } });
   document.getElementById("notes-form").addEventListener("submit", async (event) => {
     event.preventDefault();
     const text = document.getElementById("note-text"), password = document.getElementById("notes-password"), submit = document.getElementById("note-submit"), status = document.getElementById("notes-status");
@@ -120,7 +129,7 @@
     try {
       const response = await fetch(`${API_URL}/api/notes`, { method: "POST", headers: { "Content-Type": "application/json", "X-Upload-Password": password.value }, body: JSON.stringify({ text: text.value, roomId: window.NOTE_ROOM_ID || null }) });
       const note = await response.json(); if (!response.ok) throw new Error(note.error || "Не удалось добавить замечание.");
-      notes.push(note); text.value = ""; activeNoteId = note.id; renderPins(); status.textContent = "Пин добавлен и виден всем пользователям.";
+      notes.push(note); text.value = ""; activeNoteId = note.id; renderPins(); window.dispatchEvent(new Event("notes-changed")); status.textContent = "Пин добавлен и виден всем пользователям.";
     } catch (error) { status.textContent = error.message; } finally { submit.disabled = false; }
   });
 

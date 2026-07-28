@@ -171,10 +171,20 @@ app.post("/api/notes", requireUploadPassword, async (req, res, next) => {
     const text = typeof req.body.text === "string" ? req.body.text.trim() : "";
     if (!text || text.length > 500) return res.status(400).json({ error: "Заметка должна содержать от 1 до 500 символов." });
     const roomId = roomIds.has(req.body.roomId) ? req.body.roomId : null;
-    const note = { id: crypto.randomBytes(12).toString("hex"), text, roomId, status: "new", createdAt: new Date().toISOString() };
+    const position = req.body.position && ["x","y","z"].every((key) => Number.isFinite(Number(req.body.position[key]))) ? Object.fromEntries(["x","y","z"].map((key) => [key, Math.max(0,Math.min(1,Number(req.body.position[key])))])) : { x:.5, y:.5, z:.5 };
+    const note = { id: crypto.randomBytes(12).toString("hex"), text, roomId, position, status: "new", createdAt: new Date().toISOString() };
     await updateNotes((notes) => [...notes, note]);
     res.status(201).json(note);
   } catch (error) { next(error); }
+});
+app.patch("/api/notes/:id", requireUploadPassword, async (req, res, next) => {
+  try {
+    if (!/^[a-f0-9]{24}$/.test(req.params.id)) return res.status(404).json({ error:"Заметка не найдена." });
+    const source = req.body.position, values = source && ["x","y","z"].map((key) => Number(source[key]));
+    if (!values || values.some((value) => !Number.isFinite(value) || value < 0 || value > 1)) return res.status(400).json({ error:"Некорректная позиция пина." });
+    let updated; await updateNotes((notes) => notes.map((note) => note.id === req.params.id ? (updated = { ...note, position:{ x:values[0], y:values[1], z:values[2] } }) : note));
+    if (!updated) return res.status(404).json({ error:"Заметка не найдена." }); res.json(updated);
+  } catch(error) { next(error); }
 });
 app.delete("/api/notes/:id", requireUploadPassword, async (req, res, next) => {
   try {
