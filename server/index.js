@@ -43,22 +43,25 @@ for (const [suffix, file, type] of [["model.glb", "model.glb", "model/gltf-binar
 const roomUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: maxBytes } });
 const imageExtensions = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 const imageMime = /^image\/(jpeg|png|webp)$/;
-const publicRoomAsset = (room, filename) => `/api/rooms/${room}/assets/${encodeURIComponent(filename)}`;
-async function roomManifest(room) {
+const publicRoomAsset = (room, filename, version) => `/api/rooms/${room}/assets/${encodeURIComponent(filename)}${version ? `?v=${Math.trunc(version)}` : ""}`;
+export async function roomManifest(room) {
   const dir = path.join(roomRoot, room);
   const files = await fs.readdir(dir).catch(() => []);
   const floorplan = files.find((name) => name.startsWith("floorplan."));
   const model = files.includes("model.glb") ? "model.glb" : null;
   const renderFiles = files.filter((name) => /^render-[a-f0-9]{16}\.(jpg|jpeg|png|webp)$/.test(name));
   const datedRenders = await Promise.all(renderFiles.map(async (name) => ({ name, modified: (await fs.stat(path.join(dir, name))).mtimeMs })));
+  const floorplanModified = floorplan ? (await fs.stat(path.join(dir, floorplan))).mtimeMs : null;
+  const modelModified = model ? (await fs.stat(path.join(dir, model))).mtimeMs : null;
   return {
-    floorplanUrl: floorplan ? publicRoomAsset(room, floorplan) : null,
-    modelUrl: model ? publicRoomAsset(room, model) : null,
-    renderUrls: datedRenders.sort((a, b) => a.modified - b.modified || a.name.localeCompare(b.name)).map(({ name }) => publicRoomAsset(room, name))
+    floorplanUrl: floorplan ? publicRoomAsset(room, floorplan, floorplanModified) : null,
+    modelUrl: model ? publicRoomAsset(room, model, modelModified) : null,
+    renderUrls: datedRenders.sort((a, b) => a.modified - b.modified || a.name.localeCompare(b.name)).map(({ name, modified }) => publicRoomAsset(room, name, modified))
   };
 }
 app.get("/api/rooms/:room", async (req, res) => {
   if (!roomIds.has(req.params.room)) return res.status(404).json({ error: "Комната не найдена." });
+  res.set("Cache-Control", "no-store");
   res.json(await roomManifest(req.params.room));
 });
 app.get("/api/rooms/:room/assets/:filename", (req, res) => {
@@ -87,8 +90,19 @@ app.post("/api/rooms/:room/assets/:kind", requireUploadPassword, roomUpload.sing
     res.status(201).json(await roomManifest(room));
   } catch (error) { next(error); }
 });
+export async function deleteRoomAsset(room, filename) {
+  if (!roomIds.has(room) || !/^(floorplan\.(jpg|jpeg|png|webp)|model\.glb|render-[a-f0-9]{16}\.(jpg|jpeg|png|webp))$/.test(filename)) return false;
+  try { await fs.unlink(path.join(roomRoot, room, filename)); return true; } catch (error) { if (error.code === "ENOENT") return false; throw error; }
+}
+app.delete("/api/rooms/:room/assets/:filename", requireUploadPassword, async (req, res, next) => {
+  try {
+    const { room, filename } = req.params;
+    if (!await deleteRoomAsset(room, filename)) return res.status(404).json({ error: "Материал не найден." });
+    res.json(await roomManifest(room));
+  } catch (error) { next(error); }
+});
 let notesWrite = Promise.resolve();
-async function readNotes() {
+export async function readNotes() {
   try {
     const notes = JSON.parse(await fs.readFile(notesFile, "utf8"));
     return Array.isArray(notes) ? notes : [];
@@ -97,7 +111,7 @@ async function readNotes() {
     throw error;
   }
 }
-function updateNotes(change) {
+export function updateNotes(change) {
   const operation = notesWrite.then(async () => {
     const notes = await readNotes();
     const updated = change(notes);

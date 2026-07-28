@@ -25,8 +25,13 @@
         .renders-head p { margin: 0; color: #a8bfce; font-size: 13px; }
         .render-track { display: flex; gap: 14px; padding: 2px 2px 14px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-color: #8fb6b0 transparent; }
         .render-track:focus-visible { outline: 2px solid #dff5ee; outline-offset: 4px; }
-        .render-card { flex: 0 0 min(75%, 470px); scroll-snap-align: start; }
+        .render-card { width: 100%; }
         .render-card img { aspect-ratio: 16 / 10; }
+        .render-item { flex: 0 0 min(75%, 470px); scroll-snap-align: start; }
+        .asset-actions { display: flex; margin-top: 9px; }
+        .asset-delete { padding: 8px 11px; color: #ffd2d2; background: rgba(90,24,32,.42); border: 1px solid rgba(255,180,180,.35); border-radius: 9px; cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; }
+        .asset-delete:hover { background: rgba(120,30,40,.58); }
+        .asset-delete:disabled { cursor: wait; opacity: .6; }
         .model-placeholder { display: grid; min-height: 380px; place-items: center; padding: 24px; color: #a8bfce; text-align: center; background: linear-gradient(135deg, rgba(78,119,145,.34), rgba(15,36,55,.75)); border: 1px dashed rgba(223,245,238,.42); border-radius: 20px; }
         .model-placeholder strong { display: block; margin-bottom: 8px; color: #dff5ee; font-size: 20px; }
         .model-frame { width: 100%; height: min(65vw, 620px); min-height: 380px; border: 1px solid rgba(255,255,255,.16); border-radius: 20px; background: #dce7f2; }
@@ -42,7 +47,7 @@
         .modal-image { display: block; max-width: 100%; max-height: calc(92vh - 62px); margin: 0 auto; object-fit: contain; }
         .modal-caption { padding: 15px 62px 16px 18px; color: #dbe8f3; font-weight: 700; }
         .modal-close { position: absolute; top: 10px; right: 10px; display: grid; width: 38px; height: 38px; place-items: center; color: #fff; background: rgba(8,22,36,.75); border: 1px solid rgba(255,255,255,.35); border-radius: 50%; cursor: pointer; font-size: 24px; line-height: 1; }
-        @media (max-width: 700px) { main { width: min(100% - 24px, 600px); padding: 24px 0 38px; } .back { margin-bottom: 22px; } .intro { margin-bottom: 24px; } .media-grid { grid-template-columns: 1fr; } .render-card { flex-basis: 86%; } .model-placeholder, .model-frame { min-height: 280px; } .upload-form { grid-template-columns: 1fr; } }
+        @media (max-width: 700px) { main { width: min(100% - 24px, 600px); padding: 24px 0 38px; } .back { margin-bottom: 22px; } .intro { margin-bottom: 24px; } .media-grid { grid-template-columns: 1fr; } .render-item { flex-basis: 86%; } .model-placeholder, .model-frame { min-height: 280px; } .upload-form { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -58,6 +63,7 @@
                     <img src="./images/room-placeholder.svg" alt="Планировка комнаты">
                     <span class="card-label">Открыть планировку</span>
                 </button>
+                <div id="floorplan-actions" class="asset-actions" hidden></div>
             </div>
             <div>
                 <div class="renders-head"><h2>Рендеры</h2><p>Прокручивайте вправо</p></div>
@@ -72,6 +78,7 @@
         <section aria-labelledby="model-title">
             <h2 id="model-title">3D-модель комнаты</h2>
             <div id="room-model" class="model-placeholder"><div><strong>3D-модель появится здесь</strong><span>Загрузите модель комнаты в формате GLB.</span></div></div>
+            <div id="model-actions" class="asset-actions" hidden></div>
         </section>
 
         <section class="upload-panel" aria-labelledby="upload-title">
@@ -121,22 +128,30 @@
         modal.addEventListener("click", (event) => { if (event.target === modal) modal.close(); });
 
         const absoluteAssetUrl = (url) => url ? `${API_URL}${url}` : null;
+        const assetFilename = (url) => url ? decodeURIComponent(new URL(url, API_URL).pathname.split("/").pop()) : "";
+        const deleteButton = (url, label) => `<button class="asset-delete" type="button" data-delete-asset="${assetFilename(url)}">Удалить ${label}</button>`;
         function showAssets(assets) {
             const floorplan = document.getElementById("floorplan-card");
             const floorplanUrl = absoluteAssetUrl(assets.floorplanUrl) || "./images/room-placeholder.svg";
             floorplan.dataset.fullImage = floorplanUrl;
             floorplan.querySelector("img").src = floorplanUrl;
+            const floorplanActions = document.getElementById("floorplan-actions");
+            floorplanActions.hidden = !assets.floorplanUrl;
+            floorplanActions.innerHTML = assets.floorplanUrl ? deleteButton(assets.floorplanUrl, "планировку") : "";
             const renders = assets.renderUrls?.length ? assets.renderUrls : [null];
             document.getElementById("render-track").innerHTML = renders.map((url, index) => {
                 const src = absoluteAssetUrl(url) || "./images/room-placeholder.svg";
-                return `<button class="render-card" type="button" data-full-image="${src}" data-caption="Рендер комнаты — вид ${index + 1}"><img src="${src}" alt="Рендер комнаты, вид ${index + 1}"><span class="card-label">Вид ${index + 1}</span></button>`;
+                return `<div class="render-item"><button class="render-card" type="button" data-full-image="${src}" data-caption="Рендер комнаты — вид ${index + 1}"><img src="${src}" alt="Рендер комнаты, вид ${index + 1}"><span class="card-label">Вид ${index + 1}</span></button>${url ? `<div class="asset-actions">${deleteButton(url, "фото")}</div>` : ""}</div>`;
             }).join("");
             const modelBox = document.getElementById("room-model");
             if (assets.modelUrl) {
                 const modelUrl = absoluteAssetUrl(assets.modelUrl);
                 const viewerUrl = `./viewer.html?preview=1&model=${encodeURIComponent(modelUrl)}`;
                 modelBox.outerHTML = `<iframe id="room-model" class="model-frame" src="${viewerUrl}" title="3D-модель ${currentRoom.title}" loading="lazy"></iframe>`;
-            }
+            } else modelBox.outerHTML = `<div id="room-model" class="model-placeholder"><div><strong>3D-модель появится здесь</strong><span>Загрузите модель комнаты в формате GLB.</span></div></div>`;
+            const modelActions = document.getElementById("model-actions");
+            modelActions.hidden = !assets.modelUrl;
+            modelActions.innerHTML = assets.modelUrl ? deleteButton(assets.modelUrl, "3D-модель") : "";
         }
         async function loadAssets() {
             if (!rooms[roomKey]) return;
@@ -168,6 +183,19 @@
                 uploadStatus.style.color = "#ffb4b4";
                 uploadStatus.textContent = error.message || "Не удалось связаться с Render API.";
             } finally { submitButton.disabled = false; }
+        });
+        document.addEventListener("click", async (event) => {
+            const button = event.target.closest("[data-delete-asset]");
+            if (!button || !rooms[roomKey]) return;
+            const password = document.getElementById("asset-password").value;
+            if (!password) { uploadStatus.style.color = "#ffb4b4"; uploadStatus.textContent = "Введите пароль, чтобы удалить материал."; return; }
+            button.disabled = true; uploadStatus.style.color = ""; uploadStatus.textContent = "Удаление…";
+            try {
+                const response = await fetch(`${API_URL}/api/rooms/${encodeURIComponent(roomKey)}/assets/${encodeURIComponent(button.dataset.deleteAsset)}`, { method: "DELETE", headers: { "X-Upload-Password": password } });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || "Не удалось удалить материал.");
+                showAssets(result); uploadStatus.textContent = "Материал удалён.";
+            } catch (error) { button.disabled = false; uploadStatus.style.color = "#ffb4b4"; uploadStatus.textContent = error.message || "Не удалось связаться с Render API."; }
         });
         loadAssets();
     </script>
