@@ -14,6 +14,7 @@ const maxConcurrent = Number(process.env.MAX_CONCURRENT_CONVERSIONS || 1);
 const ttlMs = Number(process.env.MODEL_TTL_HOURS || 24) * 3600_000;
 const uploadPassword = process.env.UPLOAD_PASSWORD || "test123";
 const roomRoot = path.join(root, "rooms");
+const notesFile = path.join(root, "site-notes.json");
 const roomIds = new Set(["kitchen", "bedroom", "bathroom", "hall", "terrace"]);
 const jobs = new Map(); let running = 0;
 const safeId = (id) => /^[a-f0-9]{32}$/.test(id || "") ? id : null;
@@ -32,6 +33,7 @@ async function convert(job) { running++; const dir = path.join(root, job.id), in
 function processQueue() { for (const job of jobs.values()) if (running < maxConcurrent && job.status === "queued") convert(job); }
 export const app = express();
 app.use(cors({ origin: process.env.FRONTEND_ORIGIN || false }));
+app.use(express.json({ limit: "16kb" }));
 const requireUploadPassword = (req, res, next) => validUploadPassword(req.get("x-upload-password")) ? next() : res.status(401).json({ error: "Неверный пароль для загрузки." });
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: maxBytes }, fileFilter: (_, file, cb) => cb(null, path.extname(file.originalname).toLowerCase() === ".ifc" && (!file.mimetype || /ifc|octet-stream|text\/plain/.test(file.mimetype))) });
 app.post("/api/models", requireUploadPassword, upload.single("model"), async (req, res, next) => { try { if (!req.file) return res.status(400).json({ error: "Нужен IFC-файл в поле model." }); if (!ifcHeader(req.file.buffer)) return res.status(400).json({ error: "Файл не похож на корректный IFC." }); const id = crypto.randomBytes(16).toString("hex"), dir = path.join(root, id); await fs.mkdir(dir, { recursive: true }); await fs.writeFile(path.join(dir, "input.ifc"), req.file.buffer); const job = { id, status: "queued", stage: "Файл принят", createdAt: Date.now() }; jobs.set(id, job); processQueue(); res.status(202).json({ jobId: id, status: "processing" }); } catch (e) { next(e); } });
@@ -83,6 +85,48 @@ app.post("/api/rooms/:room/assets/:kind", requireUploadPassword, roomUpload.sing
     else filename = `render-${crypto.randomBytes(8).toString("hex")}${ext}`;
     await fs.writeFile(path.join(dir, filename), req.file.buffer, { mode: 0o640 });
     res.status(201).json(await roomManifest(room));
+  } catch (error) { next(error); }
+});
+let notesWrite = Promise.resolve();
+async function readNotes() {
+  try {
+    const notes = JSON.parse(await fs.readFile(notesFile, "utf8"));
+    return Array.isArray(notes) ? notes : [];
+  } catch (error) {
+    if (error.code === "ENOENT" || error instanceof SyntaxError) return [];
+    throw error;
+  }
+}
+function updateNotes(change) {
+  const operation = notesWrite.then(async () => {
+    const notes = await readNotes();
+    const updated = change(notes);
+    await fs.mkdir(root, { recursive: true });
+    const temporary = `${notesFile}.${crypto.randomBytes(6).toString("hex")}.tmp`;
+    await fs.writeFile(temporary, JSON.stringify(updated, null, 2), { mode: 0o640 });
+    await fs.rename(temporary, notesFile);
+    return updated;
+  });
+  notesWrite = operation.catch(() => {});
+  return operation;
+}
+app.get("/api/notes", async (_, res, next) => { try { res.json(await readNotes()); } catch (error) { next(error); } });
+app.post("/api/notes", requireUploadPassword, async (req, res, next) => {
+  try {
+    const text = typeof req.body.text === "string" ? req.body.text.trim() : "";
+    if (!text || text.length > 500) return res.status(400).json({ error: "Заметка должна содержать от 1 до 500 символов." });
+    const note = { id: crypto.randomBytes(12).toString("hex"), text, createdAt: new Date().toISOString() };
+    await updateNotes((notes) => [...notes, note]);
+    res.status(201).json(note);
+  } catch (error) { next(error); }
+});
+app.delete("/api/notes/:id", requireUploadPassword, async (req, res, next) => {
+  try {
+    if (!/^[a-f0-9]{24}$/.test(req.params.id)) return res.status(404).json({ error: "Заметка не найдена." });
+    let removed = false;
+    const notes = await updateNotes((current) => current.filter((note) => { if (note.id === req.params.id) { removed = true; return false; } return true; }));
+    if (!removed) return res.status(404).json({ error: "Заметка не найдена." });
+    res.json(notes);
   } catch (error) { next(error); }
 });
 app.get("/health", (_, res) => { const probe = spawnSync(process.env.IFC_CONVERT_PATH || "IfcConvert", ["--help"], { shell: false, timeout: 3000 }); res.json({ ok: true, ifcConvert: !probe.error }); });

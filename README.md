@@ -30,6 +30,8 @@ Defaults are 200 MB, one conversion at a time, five-minute conversion timeout, a
 
 Each room page can upload a floorplan (JPG/PNG/WEBP), multiple render images, and one GLB room model. These assets are stored by the Render API under `MODEL_STORAGE_DIR/rooms`; set `UPLOAD_PASSWORD` on Render (the development default is `test123`) and attach a persistent disk for durable room content.
 
+The home page also has a shared numbered notes list. Notes are stored in `MODEL_STORAGE_DIR/site-notes.json`; adding and deleting notes requires the same upload password.
+
 ## Checks
 
 Run `npm test` in `server`. A real conversion still requires a locally available `IfcConvert` and sample IFC; `/health` reports whether it was found.

@@ -13,10 +13,22 @@
         header { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 26px; }
         h1 { margin: 0; font-size: clamp(26px, 4vw, 42px); letter-spacing: -.045em; }
         header p { max-width: 440px; margin: 0; color: #b9c9d9; font-size: 15px; line-height: 1.55; }
-        .model-link { position: relative; display: block; height: min(62vw, 620px); min-height: 360px; overflow: hidden; border: 1px solid rgba(255,255,255,.18); border-radius: 24px; background: #dce7f2; box-shadow: 0 26px 65px rgba(0,0,0,.28); }
+        .hero-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, .8fr); gap: 18px; align-items: stretch; }
+        .model-link { position: relative; display: block; height: min(52vw, 620px); min-height: 430px; overflow: hidden; border: 1px solid rgba(255,255,255,.18); border-radius: 24px; background: #dce7f2; box-shadow: 0 26px 65px rgba(0,0,0,.28); }
         .model-link iframe { width: 100%; height: 100%; border: 0; pointer-events: none; }
         .model-link::after { content: "Открыть интерактивную 3D-модель"; position: absolute; right: 20px; bottom: 20px; padding: 13px 17px; color: #15304a; background: #dff5ee; border-radius: 12px; font-size: 14px; font-weight: 700; box-shadow: 0 8px 22px rgba(0,0,0,.2); transition: transform .2s ease, background .2s ease; }
         .model-link:hover::after { background: #fff; transform: translateY(-2px); }
+        .notes-panel { display: flex; min-height: 430px; max-height: 620px; flex-direction: column; padding: 20px; background: #18354e; border: 1px solid rgba(255,255,255,.14); border-radius: 24px; }
+        .notes-panel h2 { margin: 0 0 14px; }
+        .notes-list { flex: 1; margin: 0 0 16px; padding-left: 28px; overflow-y: auto; color: #dce8f2; }
+        .notes-list li { position: relative; padding: 7px 34px 7px 2px; line-height: 1.45; overflow-wrap: anywhere; }
+        .note-delete { position: absolute; top: 4px; right: 0; width: 28px; height: 28px; padding: 0; color: #ffcccc; background: transparent; border: 1px solid rgba(255,180,180,.3); border-radius: 8px; cursor: pointer; }
+        .notes-empty { color: #9fb5c5; font-size: 14px; }
+        .notes-form { display: grid; gap: 8px; }
+        .notes-form textarea, .notes-form input { width: 100%; padding: 10px 11px; color: #fff; background: #102a40; border: 1px solid rgba(255,255,255,.22); border-radius: 9px; font: inherit; resize: vertical; }
+        .notes-form button { padding: 10px 12px; color: #15304a; background: #dff5ee; border: 0; border-radius: 9px; cursor: pointer; font-weight: 800; }
+        .notes-form button:disabled { cursor: wait; opacity: .65; }
+        .notes-status { min-height: 18px; margin: 7px 0 0; color: #a8bfce; font-size: 12px; }
         h2 { margin: 42px 0 16px; font-size: 23px; letter-spacing: -.03em; }
         .rooms { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
         .room { overflow: hidden; color: inherit; text-decoration: none; background: #18354e; border: 1px solid rgba(255,255,255,.12); border-radius: 17px; transition: transform .2s ease, border-color .2s ease; }
@@ -28,7 +40,9 @@
             .page { width: min(100% - 24px, 560px); padding: 20px 0 32px; }
             header { display: block; margin-bottom: 18px; }
             header p { margin-top: 8px; font-size: 13px; }
+            .hero-grid { grid-template-columns: 1fr; }
             .model-link { min-height: 310px; height: 76vw; border-radius: 18px; }
+            .notes-panel { min-height: 360px; border-radius: 18px; }
             .model-link::after { right: 12px; bottom: 12px; padding: 10px 12px; font-size: 12px; }
             h2 { margin: 30px 0 12px; font-size: 20px; }
             .rooms { grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -45,9 +59,21 @@
             <p>Выберите комнату, чтобы перейти к её странице, или откройте интерактивную 3D-модель дома.</p>
         </header>
 
-        <a class="model-link" href="./viewer.html" aria-label="Открыть интерактивную 3D-модель">
-            <iframe src="./viewer.html?preview" title="Предпросмотр 3D-модели" tabindex="-1"></iframe>
-        </a>
+        <div class="hero-grid">
+            <a class="model-link" href="./viewer.html" aria-label="Открыть интерактивную 3D-модель">
+                <iframe src="./viewer.html?preview" title="Предпросмотр 3D-модели" tabindex="-1"></iframe>
+            </a>
+            <aside class="notes-panel" aria-labelledby="notes-title">
+                <h2 id="notes-title">Заметки</h2>
+                <ol id="notes-list" class="notes-list"><li class="notes-empty">Заметок пока нет</li></ol>
+                <form id="notes-form" class="notes-form">
+                    <textarea id="note-text" rows="3" maxlength="500" placeholder="Новая заметка" required></textarea>
+                    <input id="notes-password" type="password" autocomplete="current-password" placeholder="Пароль" required>
+                    <button id="note-submit" type="submit">Добавить заметку</button>
+                </form>
+                <p id="notes-status" class="notes-status" aria-live="polite"></p>
+            </aside>
+        </div>
 
         <h2>Комнаты</h2>
         <section class="rooms" aria-label="Список комнат">
@@ -61,6 +87,44 @@
     <script>window.MODEL_API_URL = "https://house-viewer.onrender.com";</script>
     <script>
         const API_URL = window.MODEL_API_URL || "http://localhost:3001";
+        const notesList = document.getElementById("notes-list"), notesStatus = document.getElementById("notes-status"), notesPassword = document.getElementById("notes-password");
+        let notes = [];
+        function renderNotes() {
+            notesList.innerHTML = "";
+            if (!notes.length) {
+                const empty = document.createElement("li"); empty.className = "notes-empty"; empty.textContent = "Заметок пока нет"; notesList.append(empty); return;
+            }
+            notes.forEach((note) => {
+                const item = document.createElement("li"), text = document.createElement("span"), remove = document.createElement("button");
+                text.textContent = note.text;
+                remove.type = "button"; remove.className = "note-delete"; remove.dataset.id = note.id; remove.setAttribute("aria-label", "Удалить заметку"); remove.textContent = "×";
+                item.append(text, remove); notesList.append(item);
+            });
+        }
+        async function loadNotes() {
+            try { const response = await fetch(`${API_URL}/api/notes`); if (!response.ok) throw new Error(); notes = await response.json(); renderNotes(); }
+            catch { notesStatus.textContent = "Не удалось загрузить заметки."; }
+        }
+        document.getElementById("notes-form").addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const submit = document.getElementById("note-submit"), text = document.getElementById("note-text");
+            submit.disabled = true; notesStatus.textContent = "Сохранение…";
+            try {
+                const response = await fetch(`${API_URL}/api/notes`, { method: "POST", headers: { "Content-Type": "application/json", "X-Upload-Password": notesPassword.value }, body: JSON.stringify({ text: text.value }) });
+                const result = await response.json(); if (!response.ok) throw new Error(result.error || "Не удалось добавить заметку.");
+                notes.push(result); text.value = ""; renderNotes(); notesStatus.textContent = "Заметка сохранена.";
+            } catch (error) { notesStatus.textContent = error.message; } finally { submit.disabled = false; }
+        });
+        notesList.addEventListener("click", async (event) => {
+            const button = event.target.closest(".note-delete"); if (!button) return;
+            button.disabled = true; notesStatus.textContent = "Удаление…";
+            try {
+                const response = await fetch(`${API_URL}/api/notes/${button.dataset.id}`, { method: "DELETE", headers: { "X-Upload-Password": notesPassword.value } });
+                const result = await response.json(); if (!response.ok) throw new Error(result.error || "Не удалось удалить заметку.");
+                notes = result; renderNotes(); notesStatus.textContent = "Заметка удалена.";
+            } catch (error) { button.disabled = false; notesStatus.textContent = error.message; }
+        });
+        loadNotes();
         document.querySelectorAll(".room[data-room]").forEach(async (card) => {
             try {
                 const response = await fetch(`${API_URL}/api/rooms/${encodeURIComponent(card.dataset.room)}`);
