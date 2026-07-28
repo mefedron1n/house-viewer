@@ -51,12 +51,26 @@
 
         <h2>Комнаты</h2>
         <section class="rooms" aria-label="Список комнат">
-            <a class="room" href="./room.html?room=kitchen"><img src="./images/room-placeholder.svg" alt="Фото кухни-гостиной"><span>Кухня-гостиная<small>Информация и фото будут добавлены</small></span></a>
-            <a class="room" href="./room.html?room=bedroom"><img src="./images/room-placeholder.svg" alt="Фото спальни"><span>Спальня<small>Информация и фото будут добавлены</small></span></a>
-            <a class="room" href="./room.html?room=bathroom"><img src="./images/room-placeholder.svg" alt="Фото санузла"><span>Санузел<small>Информация и фото будут добавлены</small></span></a>
-            <a class="room" href="./room.html?room=hall"><img src="./images/room-placeholder.svg" alt="Фото прихожей"><span>Прихожая<small>Информация и фото будут добавлены</small></span></a>
-            <a class="room" href="./room.html?room=terrace"><img src="./images/room-placeholder.svg" alt="Фото террасы"><span>Терраса<small>Информация и фото будут добавлены</small></span></a>
+            <a class="room" data-room="kitchen" href="./room.html?room=kitchen"><img src="./images/room-placeholder.svg" alt="Фото кухни-гостиной"><span>Кухня-гостиная<small>Информация и фото будут добавлены</small></span></a>
+            <a class="room" data-room="bedroom" href="./room.html?room=bedroom"><img src="./images/room-placeholder.svg" alt="Фото спальни"><span>Спальня<small>Информация и фото будут добавлены</small></span></a>
+            <a class="room" data-room="bathroom" href="./room.html?room=bathroom"><img src="./images/room-placeholder.svg" alt="Фото санузла"><span>Санузел<small>Информация и фото будут добавлены</small></span></a>
+            <a class="room" data-room="hall" href="./room.html?room=hall"><img src="./images/room-placeholder.svg" alt="Фото прихожей"><span>Прихожая<small>Информация и фото будут добавлены</small></span></a>
+            <a class="room" data-room="terrace" href="./room.html?room=terrace"><img src="./images/room-placeholder.svg" alt="Фото террасы"><span>Терраса<small>Информация и фото будут добавлены</small></span></a>
         </section>
     </main>
+    <script>window.MODEL_API_URL = "https://house-viewer.onrender.com";</script>
+    <script>
+        const API_URL = window.MODEL_API_URL || "http://localhost:3001";
+        document.querySelectorAll(".room[data-room]").forEach(async (card) => {
+            try {
+                const response = await fetch(`${API_URL}/api/rooms/${encodeURIComponent(card.dataset.room)}`);
+                if (!response.ok) return;
+                const room = await response.json();
+                if (!room.renderUrls?.length) return;
+                card.querySelector("img").src = `${API_URL}${room.renderUrls[0]}`;
+                card.querySelector("small").textContent = "Открыть материалы комнаты";
+            } catch { /* Заглушка остаётся на месте, если API временно недоступен. */ }
+        });
+    </script>
 </body>
 </html>

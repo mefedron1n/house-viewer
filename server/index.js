@@ -47,10 +47,12 @@ async function roomManifest(room) {
   const files = await fs.readdir(dir).catch(() => []);
   const floorplan = files.find((name) => name.startsWith("floorplan."));
   const model = files.includes("model.glb") ? "model.glb" : null;
+  const renderFiles = files.filter((name) => /^render-[a-f0-9]{16}\.(jpg|jpeg|png|webp)$/.test(name));
+  const datedRenders = await Promise.all(renderFiles.map(async (name) => ({ name, modified: (await fs.stat(path.join(dir, name))).mtimeMs })));
   return {
     floorplanUrl: floorplan ? publicRoomAsset(room, floorplan) : null,
     modelUrl: model ? publicRoomAsset(room, model) : null,
-    renderUrls: files.filter((name) => /^render-[a-f0-9]{16}\.(jpg|jpeg|png|webp)$/.test(name)).sort().map((name) => publicRoomAsset(room, name))
+    renderUrls: datedRenders.sort((a, b) => a.modified - b.modified || a.name.localeCompare(b.name)).map(({ name }) => publicRoomAsset(room, name))
   };
 }
 app.get("/api/rooms/:room", async (req, res) => {
