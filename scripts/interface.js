@@ -19,9 +19,7 @@
   });
 
   document.querySelectorAll(".settings-toggle").forEach((button) => button.addEventListener("click", () => document.getElementById("settings-drawer").classList.toggle("open")));
-  const themeButton = document.getElementById("theme-button");
-  function setTheme(dark) { document.documentElement.classList.toggle("dark", dark); themeButton.classList.toggle("active", dark); themeButton.setAttribute("aria-pressed", dark); themeButton.title = dark ? "Светлая тема" : "Тёмная тема"; localStorage.setItem("theme", dark ? "dark" : "light"); window.dispatchEvent(new CustomEvent("theme-changed", { detail:{ dark } })); }
-  setTheme(localStorage.getItem("theme") === "dark" || (!localStorage.getItem("theme") && matchMedia("(prefers-color-scheme:dark)").matches)); themeButton.onclick = () => setTheme(!document.documentElement.classList.contains("dark"));
+  document.documentElement.classList.remove("dark"); localStorage.removeItem("theme");
   document.addEventListener("keydown", (event) => { if (event.key === "Escape") { document.getElementById("settings-drawer").classList.remove("open"); activeNoteId = null; renderPins(); } });
 
   function roomTile(key, room) {

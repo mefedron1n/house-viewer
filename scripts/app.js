@@ -9,15 +9,13 @@ const viewer = $("viewer"), loadingScreen = $("loading-screen"), loadingText = $
 const pageParams = new URLSearchParams(location.search);
 if (pageParams.has("preview")) document.documentElement.classList.add("preview");
 
-const scene = new THREE.Scene(); scene.background = new THREE.Color(0xf1f5f9); scene.fog = new THREE.Fog(0xf1f5f9, 35, 100);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xe9edf1); scene.fog = new THREE.Fog(0xe9edf1, 35, 100);
 const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, .05, 500);
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(viewer.clientWidth, viewer.clientHeight); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1; viewer.append(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.dampingFactor = .06; controls.minPolarAngle = .08; controls.maxPolarAngle = Math.PI / 2.02;
 const hemisphere = new THREE.HemisphereLight(0xffffff, 0x718096, 2.35); scene.add(hemisphere); const sun = new THREE.DirectionalLight(0xffffff, 3); sun.position.set(12, 20, 10); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); scene.add(sun); const fill = new THREE.DirectionalLight(0xcfe1ff, 1.15); fill.position.set(-10, 8, -10); scene.add(fill);
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: 0xe7edf4, roughness: .95 })); ground.rotation.x = -Math.PI / 2; ground.position.y = -.02; ground.receiveShadow = true; scene.add(ground); const grid = new THREE.GridHelper(100, 100, 0xb6c2d0, 0xd5dde7); grid.position.y = .005; grid.material.opacity = .2; grid.material.transparent = true; scene.add(grid);
-function applyTheme(dark) { scene.background.set(dark ? 0x111827 : 0xf1f5f9); scene.fog.color.set(dark ? 0x111827 : 0xf1f5f9); ground.material.color.set(dark ? 0x1e293b : 0xe7edf4); }
-applyTheme(document.documentElement.classList.contains("dark")); window.addEventListener("theme-changed", (event) => applyTheme(event.detail.dark));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({ color: 0xeef2f5, roughness: .95 })); ground.rotation.x = -Math.PI / 2; ground.position.y = -.02; ground.receiveShadow = true; scene.add(ground); const grid = new THREE.GridHelper(100, 100, 0x485868, 0x485868); grid.position.y = .005; grid.material.opacity = .12; grid.material.transparent = true; scene.add(grid);
 
 let house, originalPosition = new THREE.Vector3(), originalTarget = new THREE.Vector3(), cameraAnimation, mixer, activeObjectUrl, activeUpload;
 let wallsVisible = true, pinsVisible = true, brightLighting = true, viewerActive = !(pageParams.get("route") || "").startsWith("/rooms/"), modelRequested = false, animationFrame; const selectable = [], clock = new THREE.Clock(), raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2();
@@ -44,7 +42,7 @@ $("lighting-button").onclick = (event) => { brightLighting = !brightLighting; he
 $("screenshot-button").onclick = () => { renderer.render(scene, camera); const link = document.createElement("a"); link.download = `house-reviewer-${new Date().toISOString().slice(0, 10)}.png`; link.href = renderer.domElement.toDataURL("image/png"); link.click(); };
 
 const fileInput = $("model-file-input"), dropzone = $("upload-dropzone"), progress = $("upload-progress"), progressBar = progress.firstElementChild;
-const setUploadStatus = (text, error = false) => { $("upload-status").textContent = text; $("upload-status").style.color = error ? "#dc2626" : ""; };
+const setUploadStatus = (text, error = false) => { $("upload-status").textContent = text; $("upload-status").style.color = error ? "var(--color-danger)" : ""; };
 const showProgress = (value, indeterminate = false) => { progress.hidden = false; progress.classList.toggle("indeterminate", indeterminate); progressBar.style.width = `${value}%`; };
 function describe(file) { return `${file.name} — ${(file.size / 1024 / 1024).toFixed(1)} МБ`; }
 async function selectModel(file) { if (!file) return; const extension = file.name.split(".").pop().toLowerCase(); $("upload-file-info").textContent = describe(file); if (["pla", "pln"].includes(extension)) return setUploadStatus("Экспортируйте проект из Archicad в IFC, затем загрузите IFC на сайт.", true); if (!["ifc", "glb", "gltf"].includes(extension)) return setUploadStatus("Выберите файл IFC, GLB или GLTF.", true); if (extension === "gltf") return setUploadStatus("Для модели с отдельными ресурсами используйте единый файл GLB.", true); if (extension === "glb") { activeObjectUrl = URL.createObjectURL(file); window.showApartment?.(); window.setViewerActive?.(true); loadModel(activeObjectUrl); return; } uploadIfc(file); }

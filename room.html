@@ -6,49 +6,36 @@
     <title>Комната — проект дома</title>
     <link rel="icon" type="image/png" href="./images/icon.png">
     <style>
-        :root { color-scheme: dark; }
+        :root { color-scheme:light; --color-page:#F4F6F8; --color-surface:#FFFFFF; --color-surface-soft:#F8FAFC; --color-surface-muted:#EEF2F5; --color-surface-hover:#F1F5F9; --color-text-primary:#17202A; --color-text-secondary:#566270; --color-text-muted:#84909C; --color-text-inverse:#FFFFFF; --color-border:#DCE2E8; --color-border-soft:#E8EDF1; --color-border-strong:#C5CDD5; --color-primary:#3B6F9E; --color-primary-hover:#315F88; --color-primary-soft:#E7F0F8; --color-primary-border:#BFD3E5; --color-danger:#B64A4A; --color-danger-soft:#FBEAEA; --color-danger-border:#E8BABA; --color-overlay:rgba(23,32,42,.42); --shadow-xs:0 1px 2px rgba(23,32,42,.05); --shadow-sm:0 4px 12px rgba(23,32,42,.07); --shadow-lg:0 20px 50px rgba(23,32,42,.14); --focus-ring:0 0 0 3px rgba(59,111,158,.22); }
         * { box-sizing: border-box; }
-        body { min-width: 320px; margin: 0; color: #fff; background: radial-gradient(circle at top, #244a67, #102238 70%); font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+        body { min-width: 320px; margin: 0; color:var(--color-text-primary); background:var(--color-page); font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
         main { width: min(1120px, calc(100% - 48px)); margin: 0 auto; padding: 42px 0 56px; }
-        .back { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 28px; color: #dff5ee; font-weight: 700; text-decoration: none; }
-        .back:hover { color: #fff; }
+        .back { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 28px; color:var(--color-primary); font-weight: 600; text-decoration: none; }.back:hover { color:var(--color-primary-hover); }
         h1 { margin: 0; font-size: clamp(30px, 5vw, 46px); letter-spacing: -.045em; }
-        .intro { max-width: 620px; margin: 10px 0 32px; color: #c2d0dc; line-height: 1.55; }
+        .intro { max-width: 620px; margin: 10px 0 32px; color:var(--color-text-secondary); line-height: 1.55; }
         h2 { margin: 34px 0 14px; font-size: 22px; letter-spacing: -.025em; }
         .media-grid { display: grid; grid-template-columns: minmax(260px, .85fr) minmax(0, 1.6fr); gap: 18px; }
-        .media-card, .render-card { padding: 0; overflow: hidden; color: inherit; background: #18354e; border: 1px solid rgba(255,255,255,.16); border-radius: 18px; cursor: zoom-in; text-align: left; transition: transform .2s ease, border-color .2s ease; }
-        .media-card:hover, .render-card:hover { transform: translateY(-3px); border-color: rgba(223,245,238,.7); }
+        .media-card, .render-card { padding:0; overflow:hidden; color:inherit; background:var(--color-surface); border:1px solid var(--color-border-soft); border-radius:18px; box-shadow:var(--shadow-xs); cursor:zoom-in; text-align:left; transition:.2s ease; }.media-card:hover,.render-card:hover { transform:translateY(-1px); border-color:var(--color-border); box-shadow:var(--shadow-sm); }
         [data-upload-kind] { border-style: dashed; }
-        [data-upload-kind] .card-label { color: #dff5ee; text-align: center; }
-        .media-card img, .render-card img { display: block; width: 100%; background: #284b65; object-fit: cover; }
+        [data-upload-kind] .card-label { color:var(--color-primary); text-align:center; }.media-card img,.render-card img { display:block; width:100%; background:var(--color-surface-muted); object-fit:cover; }
         .media-card img { aspect-ratio: 4 / 3; }
         .card-label { display: block; padding: 13px 15px 15px; font-size: 15px; font-weight: 700; }
         .renders-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
-        .renders-head p { margin: 0; color: #a8bfce; font-size: 13px; }
-        .render-track { display: flex; gap: 14px; padding: 2px 2px 14px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-color: #8fb6b0 transparent; }
-        .render-track:focus-visible { outline: 2px solid #dff5ee; outline-offset: 4px; }
+        .renders-head p { margin:0; color:var(--color-text-muted); font-size:13px; }.render-track { display:flex; gap:14px; padding:2px 2px 14px; overflow-x:auto; scroll-snap-type:x mandatory; }.render-track:focus-visible { outline:none; box-shadow:var(--focus-ring); }
         .render-card { width: 100%; }
         .render-card img { aspect-ratio: 16 / 10; }
         .render-item { flex: 0 0 min(75%, 470px); scroll-snap-align: start; }
         .asset-actions { display: flex; margin-top: 9px; }
-        .asset-delete { padding: 8px 11px; color: #ffd2d2; background: rgba(90,24,32,.42); border: 1px solid rgba(255,180,180,.35); border-radius: 9px; cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; }
-        .asset-delete:hover { background: rgba(120,30,40,.58); }
+        .asset-delete { padding:8px 11px; color:var(--color-danger); background:var(--color-danger-soft); border:1px solid var(--color-danger-border); border-radius:9px; cursor:pointer; font:inherit; font-size:13px; font-weight:600; }.asset-delete:hover { border-color:var(--color-danger); }
         .asset-delete:disabled { cursor: wait; opacity: .6; }
-        .model-placeholder { display: grid; min-height: 380px; place-items: center; padding: 24px; color: #a8bfce; text-align: center; background: linear-gradient(135deg, rgba(78,119,145,.34), rgba(15,36,55,.75)); border: 1px dashed rgba(223,245,238,.42); border-radius: 20px; }
-        .model-placeholder strong { display: block; margin-bottom: 8px; color: #dff5ee; font-size: 20px; }
-        .model-frame { width: 100%; height: min(65vw, 620px); min-height: 380px; border: 1px solid rgba(255,255,255,.16); border-radius: 20px; background: #dce7f2; }
-        .upload-panel { margin-top: 38px; padding: 22px; background: rgba(11,30,47,.76); border: 1px solid rgba(255,255,255,.16); border-radius: 18px; }
+        .model-placeholder { display:grid; min-height:380px; place-items:center; padding:24px; color:var(--color-text-muted); text-align:center; background:var(--color-surface-soft); border:1px dashed var(--color-border-strong); border-radius:20px; }.model-placeholder strong { display:block; margin-bottom:8px; color:var(--color-text-primary); font-size:20px; }.model-frame { width:100%; height:min(65vw,620px); min-height:380px; border:1px solid var(--color-border-soft); border-radius:20px; background:var(--color-surface-muted); }.upload-panel { margin-top:38px; padding:22px; background:var(--color-surface); border:1px solid var(--color-border-soft); border-radius:18px; box-shadow:var(--shadow-xs); }
         .upload-panel h2 { margin-top: 0; }
         .upload-form { display: grid; grid-template-columns: 1fr 1.5fr 1fr auto; gap: 10px; }
-        .upload-form select, .upload-form input, .upload-form button { min-width: 0; padding: 11px 12px; color: #fff; background: #102f48; border: 1px solid rgba(255,255,255,.25); border-radius: 10px; font: inherit; }
-        .upload-form button { color: #15304a; background: #dff5ee; border: 0; cursor: pointer; font-weight: 800; }
+        .upload-form select,.upload-form input,.upload-form button { min-width:0; padding:11px 12px; color:var(--color-text-primary); background:var(--color-surface); border:1px solid var(--color-border); border-radius:10px; font:inherit; }.upload-form select:focus,.upload-form input:focus { outline:none; border-color:var(--color-primary); box-shadow:var(--focus-ring); }.upload-form button { color:var(--color-text-inverse); background:var(--color-primary); border-color:var(--color-primary); cursor:pointer; font-weight:600; }.upload-form button:hover { background:var(--color-primary-hover); }
         .upload-form button:disabled { cursor: wait; opacity: .65; }
-        .upload-help, .upload-status { margin: 10px 0 0; color: #a8bfce; font-size: 13px; line-height: 1.45; }
-        dialog { width: min(1100px, calc(100% - 32px)); max-width: none; max-height: min(92vh, 900px); padding: 0; overflow: hidden; background: #0b1928; border: 1px solid rgba(255,255,255,.25); border-radius: 18px; box-shadow: 0 24px 80px rgba(0,0,0,.6); }
-        dialog::backdrop { background: rgba(3, 11, 20, .84); backdrop-filter: blur(4px); }
+        .upload-help,.upload-status { margin:10px 0 0; color:var(--color-text-muted); font-size:13px; line-height:1.45; }dialog { width:min(1100px,calc(100% - 32px)); max-width:none; max-height:min(92vh,900px); padding:0; overflow:hidden; background:rgba(14,19,24,.96); border:1px solid rgba(255,255,255,.18); border-radius:18px; box-shadow:var(--shadow-lg); }dialog::backdrop { background:var(--color-overlay); backdrop-filter:blur(4px); }
         .modal-image { display: block; max-width: 100%; max-height: calc(92vh - 62px); margin: 0 auto; object-fit: contain; }
-        .modal-caption { padding: 15px 62px 16px 18px; color: #dbe8f3; font-weight: 700; }
-        .modal-close { position: absolute; top: 10px; right: 10px; display: grid; width: 38px; height: 38px; place-items: center; color: #fff; background: rgba(8,22,36,.75); border: 1px solid rgba(255,255,255,.35); border-radius: 50%; cursor: pointer; font-size: 24px; line-height: 1; }
+        .modal-caption { padding:15px 62px 16px 18px; color:var(--color-text-inverse); font-weight:600; }.modal-close { position:absolute; top:10px; right:10px; display:grid; width:38px; height:38px; place-items:center; color:var(--color-text-inverse); background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); border-radius:50%; cursor:pointer; font-size:24px; line-height:1; }:focus-visible { outline:none; box-shadow:var(--focus-ring); }
         @media (max-width: 700px) { main { width: min(100% - 24px, 600px); padding: 24px 0 38px; } .back { margin-bottom: 22px; } .intro { margin-bottom: 24px; } .media-grid { grid-template-columns: 1fr; } .render-item { flex-basis: 86%; } .model-placeholder, .model-frame { min-height: 280px; } .upload-form { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -206,7 +193,7 @@
                 resetUploadConfirmation();
                 uploadStatus.textContent = files.length > 1 ? `Загружено фото: ${files.length}.` : "Материал загружен.";
             } catch (error) {
-                uploadStatus.style.color = "#ffb4b4";
+                uploadStatus.style.color = "var(--color-danger)";
                 uploadStatus.textContent = error.message || "Не удалось связаться с Render API.";
             } finally { submitButton.disabled = false; }
         });
@@ -214,7 +201,7 @@
             const button = event.target.closest("[data-delete-asset]");
             if (!button || !rooms[roomKey]) return;
             const password = passwordInput.value || window.prompt("Введите пароль, чтобы удалить материал:") || "";
-            if (!password) { uploadStatus.style.color = "#ffb4b4"; uploadStatus.textContent = "Удаление отменено: пароль не введён."; return; }
+            if (!password) { uploadStatus.style.color = "var(--color-danger)"; uploadStatus.textContent = "Удаление отменено: пароль не введён."; return; }
             passwordInput.value = password;
             button.disabled = true; uploadStatus.style.color = ""; uploadStatus.textContent = "Удаление…";
             try {
@@ -222,7 +209,7 @@
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error || "Не удалось удалить материал.");
                 showAssets(result); uploadStatus.textContent = "Материал удалён.";
-            } catch (error) { button.disabled = false; uploadStatus.style.color = "#ffb4b4"; uploadStatus.textContent = error.message || "Не удалось связаться с Render API."; }
+            } catch (error) { button.disabled = false; uploadStatus.style.color = "var(--color-danger)"; uploadStatus.textContent = error.message || "Не удалось связаться с Render API."; }
         });
         loadAssets();
     </script>
