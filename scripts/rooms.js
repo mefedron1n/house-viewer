@@ -25,7 +25,7 @@
   }
   function openRoom(room, updateUrl = true) { if (!room) return navigate("/", true); selectedRoom = room; window.NOTE_ROOM_ID = room.id; selectedTab = "overview"; window.setViewerActive?.(false); page.classList.add("active"); sidebar.classList.remove("open"); document.querySelector(".project-card").hidden = true; document.querySelector(".tools").hidden = true; if (updateUrl) window.top.history.pushState({}, "", `/rooms/${room.slug}`); renderSidebar(); renderRoom(); }
   function closeRoom(updateUrl = true, preserveNoteRoom = false) { selectedRoom = null; if (!preserveNoteRoom) window.NOTE_ROOM_ID = null; page.classList.remove("active"); window.setViewerActive?.(true); document.querySelector(".project-card").hidden = false; document.querySelector(".tools").hidden = false; if (updateUrl) window.top.history.pushState({}, "", "/"); renderSidebar(); }
-  window.openHouseRoom = (roomId) => openRoom(roomById[roomId]);
+  window.openHouseRoom = (roomId, tab) => { openRoom(roomById[roomId]); if (tab && ["photos","renders"].includes(tab)) { selectedTab=tab; renderRoom(); } };
   function updatedAt(data) { const values = [...(data.photos || []).map((photo) => photo.createdAt)]; return values.sort().at(-1) || null; }
   function renderRoom() {
     const data = manifests[selectedRoom.id] || {}, count = roomCounts(selectedRoom), updated = updatedAt(data);

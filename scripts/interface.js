@@ -34,18 +34,13 @@
   function applyProjectFloorplan(url) { projectFloorplanUrl = absoluteUrl(url); const view=document.getElementById("project-floorplan-view"), board=document.getElementById("pin-board"); if(projectFloorplanUrl) { view.className=""; const image=document.createElement("img"); image.src=projectFloorplanUrl; image.alt="Планировка всего проекта"; view.replaceChildren(image); board.style.backgroundImage=`url("${projectFloorplanUrl}")`; board.classList.add("has-floorplan"); } else { view.className="project-floorplan-empty"; view.textContent="Общая планировка ещё не загружена."; board.style.backgroundImage=""; board.classList.remove("has-floorplan"); } }
   async function loadProjectFloorplan() { try { const response=await fetch(`${API_URL}/api/project`,{cache:"no-store"}); if(response.ok) applyProjectFloorplan((await response.json()).floorplanUrl); } catch {} }
   const projectFloorplanInput=document.createElement("input"); projectFloorplanInput.type="file"; projectFloorplanInput.accept="image/jpeg,image/png,image/webp"; projectFloorplanInput.hidden=true; document.body.append(projectFloorplanInput); document.getElementById("project-floorplan-upload").onclick=()=>projectFloorplanInput.click(); projectFloorplanInput.onchange=async()=>{ const file=projectFloorplanInput.files[0], status=document.getElementById("project-floorplan-status"); if(!file)return; const password=prompt("Введите пароль для загрузки общей планировки:")||""; if(!password)return; status.textContent="Загрузка…"; const data=new FormData(); data.append("file",file); try { const response=await fetch(`${API_URL}/api/project/floorplan`,{method:"POST",headers:{"X-Upload-Password":password},body:data}), result=await response.json(); if(!response.ok)throw new Error(result.error||"Не удалось загрузить планировку."); applyProjectFloorplan(result.floorplanUrl); status.textContent="Общая планировка сохранена и установлена фоном для пинов."; }catch(error){status.textContent=error.message;}finally{projectFloorplanInput.value="";} };
-  function galleryMarkup(useAll = true) {
-    const sections = Object.entries(roomNames).map(([key, title]) => {
-      const room = roomData[key] || {};
-      const urls = useAll ? room.renderUrls || [] : (room.renderUrls || []).slice(0, 1);
-      if (!urls.length) return "";
-      return `<section class="gallery-section"><h3>${title}</h3><div class="gallery-grid">${urls.map((url, index) => `<button class="gallery-card" type="button" data-image="${absoluteUrl(url)}" data-caption="${title} · ${index + 1}"><img src="${absoluteUrl(url)}" alt="${title}, изображение ${index + 1}" loading="lazy"><span>${title} · ${index + 1}</span></button>`).join("")}</div></section>`;
-    }).filter(Boolean).join("");
-    return sections || `<div class="gallery-grid"><div class="empty-state">Материалы ещё не загружены. Добавить их можно на странице соответствующей комнаты.</div></div>`;
-  }
+  const galleryIndexes = { photos:0, renders:0 };
+  function galleryItems(kind) { return Object.entries(roomNames).flatMap(([key,title]) => { const room=roomData[key]||{}; if(kind==="photos") return (room.photos||[]).map((photo,index)=>({ url:absoluteUrl(photo.url), title, caption:`${title} · фото ${index+1}` })); return (room.renderUrls||[]).map((url,index)=>({ url:absoluteUrl(url), title, caption:`${title} · рендер ${index+1}` })); }); }
+  function mediaRoomTile(key, kind) { const room=roomData[key]||{}, photo=room.photos?.[0]?.url, render=room.renderUrls?.[0], image=absoluteUrl(kind==="photos" ? photo : render); return `<button class="room-tile" data-room-focus="${key}" data-room-tab-target="${kind}" type="button"><span class="room-visual">${image ? `<img src="${image}" alt="${kind==="photos" ? "Фото" : "Рендер"}: ${roomNames[key]}">` : `<svg class="icon"><path d="M4 4h16v16H4zM9 4v7h11M9 11v9"/></svg>`}</span><span class="room-copy"><strong>${roomNames[key]}</strong><small>Открыть ${kind==="photos" ? "фотографии" : "рендеры"} комнаты</small></span></button>`; }
+  function galleryMarkup(kind) { const items=galleryItems(kind), index=items.length ? galleryIndexes[kind]%items.length : 0, item=items[index]; if(!item) return `<div class="empty-state">Материалы ещё не загружены. Добавить их можно на странице соответствующей комнаты.</div><h3 class="gallery-room-title">Выбрать комнату</h3><div class="room-grid">${Object.keys(roomNames).map((key)=>mediaRoomTile(key,kind)).join("")}</div>`; return `<section class="media-showcase" data-gallery-kind="${kind}"><div class="media-stage"><button class="media-arrow previous" type="button" data-gallery-step="-1" aria-label="Предыдущее изображение">‹</button><button class="media-main" type="button" data-image="${item.url}" data-caption="${item.caption}"><img src="${item.url}" alt="${item.caption}"><span>${item.caption}</span></button><button class="media-arrow next" type="button" data-gallery-step="1" aria-label="Следующее изображение">›</button></div><div class="media-counter">${index+1} / ${items.length}</div><div class="media-thumbnails">${items.map((entry,itemIndex)=>`<button class="media-thumbnail ${itemIndex===index?"active":""}" type="button" data-gallery-index="${itemIndex}" aria-label="${entry.caption}"><img src="${entry.url}" alt="" loading="lazy"></button>`).join("")}</div></section><h3 class="gallery-room-title">Выбрать комнату</h3><div class="room-grid">${Object.keys(roomNames).map((key)=>mediaRoomTile(key,kind)).join("")}</div>`; }
   function renderGalleries() {
-    document.getElementById("photos-content").innerHTML = galleryMarkup(false);
-    document.getElementById("renders-content").innerHTML = galleryMarkup(true);
+    document.getElementById("photos-content").innerHTML = galleryMarkup("photos");
+    document.getElementById("renders-content").innerHTML = galleryMarkup("renders");
   }
   async function loadRooms() {
     const entries = await Promise.all(Object.keys(roomNames).map(async (key) => {
@@ -54,10 +49,10 @@
     }));
     roomData = Object.fromEntries(entries); renderPlan(); renderGalleries();
   }
-  document.getElementById("plan-rooms").addEventListener("click", (event) => {
+  document.addEventListener("click", (event) => {
     const tile = event.target.closest("[data-room-focus]");
-    if (!tile) return;
-    window.openHouseRoom?.(tile.dataset.roomFocus);
+    if (tile) return window.openHouseRoom?.(tile.dataset.roomFocus, tile.dataset.roomTabTarget);
+    const gallery=event.target.closest("[data-gallery-kind]"); if(!gallery)return; const kind=gallery.dataset.galleryKind, total=galleryItems(kind).length, step=event.target.closest("[data-gallery-step]"), selected=event.target.closest("[data-gallery-index]"); if(step&&total) galleryIndexes[kind]=(galleryIndexes[kind]+Number(step.dataset.galleryStep)+total)%total; else if(selected) galleryIndexes[kind]=Number(selected.dataset.galleryIndex); else return; document.getElementById(`${kind}-content`).innerHTML=galleryMarkup(kind);
   });
 
   const lightbox = document.getElementById("lightbox"), lightboxImage = lightbox.querySelector(".lightbox-image"); let lightboxItems = [], lightboxIndex = 0, touchStartX = 0;
