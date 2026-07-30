@@ -14,7 +14,15 @@ Start the API with Docker (copy `.env.example` to `server/.env` and set the real
 docker compose up --build
 ```
 
-Serve the project directory with any static HTTP server, then open `index.html`. It immediately displays the full-screen reviewer; there is no separate landing page. The frontend expects the API at `http://localhost:3001`; define `window.MODEL_API_URL` before `scripts/app.js` when deploying it elsewhere. Check conversion support at `GET /health`.
+Serve the project root (not the `server` directory) with a static HTTP server, then open `index.html`. For example, from the directory containing this README:
+
+```sh
+python3 -m http.server 8000
+```
+
+Open `http://localhost:8000/` for the public product site. On `localhost` and `127.0.0.1` the viewer uses the Docker API at `http://localhost:3001`; on the deployed site it uses the Render API. Check local conversion support at `http://localhost:3001/health`.
+
+The public product experience starts at `/`. Authentication and the product workspace are available at `/auth.html` and `/studio.html`. The workspace includes overview, project list and a four-step project wizard; the existing `/viewer.html` remains the shared interactive property template.
 
 For a local Node run, install Node 22+, install `IfcConvert` from a compatible IfcOpenShell distribution, then run `npm install` and `npm start` inside `server`.
 

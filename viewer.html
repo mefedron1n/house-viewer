@@ -18,6 +18,11 @@
       --color-note-new:#4C78A8; --color-note-progress:#B8792C; --color-note-resolved:#438260; --color-note-rejected:#8A6670;
       --color-overlay:rgba(23,32,42,.42); --color-overlay-strong:rgba(23,32,42,.66); --color-glass:rgba(255,255,255,.86); --color-glass-strong:rgba(255,255,255,.94);
       --shadow-xs:0 1px 2px rgba(23,32,42,.05); --shadow-sm:0 4px 12px rgba(23,32,42,.07); --shadow-md:0 10px 30px rgba(23,32,42,.10); --shadow-lg:0 20px 50px rgba(23,32,42,.14); --focus-ring:0 0 0 3px rgba(59,111,158,.22);
+      --header-bg:rgba(22,32,43,.92); --header-bg-solid:#16202B; --header-bg-hover:#1C2936; --header-bg-active:#20364C;
+      --header-border:rgba(145,164,182,.14); --header-divider:rgba(145,164,182,.12);
+      --header-text:#E6EDF3; --header-text-secondary:#A8B6C4; --header-text-muted:#718191; --header-icon:#A8B6C4; --header-icon-hover:#DCE8F3;
+      --header-accent:#5A9DEB; --header-accent-hover:#72ADF0; --header-accent-soft:rgba(90,157,235,.14); --header-accent-border:rgba(90,157,235,.30); --header-danger:#EE6B6B;
+      --header-shadow:0 8px 28px rgba(4,10,16,.22); --header-focus:0 0 0 3px rgba(90,157,235,.24);
       --bg:var(--color-page); --panel:var(--color-glass); --white:var(--color-surface); --text:var(--color-text-primary); --muted:var(--color-text-muted); --line:var(--color-border-soft); --accent:var(--color-primary); --accent-soft:var(--color-primary-soft); --danger:var(--color-danger); --shadow:var(--shadow-md); --radius:20px;
     }
     html.dark {
@@ -59,7 +64,7 @@
     .icon-button:hover { color:var(--accent); background:#fff; transform:translateY(-1px); box-shadow:0 8px 18px rgba(15,23,42,.08); }
     .icon-button.active { color:#fff; background:var(--accent); border-color:var(--accent); }
 
-    .project-card { position:absolute; z-index:12; left:24px; bottom:24px; width:230px; padding:17px 18px; background:var(--panel); border:1px solid rgba(255,255,255,.92); border-radius:18px; box-shadow:var(--shadow); backdrop-filter:blur(20px); animation:rise .55s .25s both; }
+    .project-card { position:absolute; z-index:12; top:88px; left:24px; width:230px; padding:17px 18px; background:var(--panel); border:1px solid rgba(255,255,255,.92); border-radius:18px; box-shadow:var(--shadow); backdrop-filter:blur(20px); animation:rise .55s .25s both; }
     .project-card small { display:block; margin-bottom:5px; color:var(--accent); font-size:11px; font-weight:750; letter-spacing:.08em; text-transform:uppercase; }
     .project-card h1 { margin:0 0 12px; font-size:20px; letter-spacing:-.035em; }
     .project-meta { display:flex; gap:8px; color:#475569; font-size:12px; }
@@ -73,7 +78,7 @@
     .tool:hover::after { opacity:1; transform:translate(0,-50%); }
     .tool .icon { display:block; width:20px; height:20px; margin:auto; }
     .rooms-sidebar > .tools { top:0; right:auto; left:-64px; }
-    .rooms-sidebar { position:absolute; z-index:18; top:88px; right:14px; bottom:14px; width:280px; display:flex; flex-direction:column; padding:16px; background:var(--panel); border:1px solid rgba(255,255,255,.95); border-radius:20px; box-shadow:var(--shadow); backdrop-filter:blur(22px); transition:.25s ease; }
+    .rooms-sidebar { position:absolute; z-index:18; top:14px; right:14px; bottom:14px; width:280px; display:flex; flex-direction:column; padding:16px; background:var(--panel); border:1px solid rgba(255,255,255,.95); border-radius:20px; box-shadow:var(--shadow); backdrop-filter:blur(22px); transition:.25s ease; }
     .rooms-sidebar.collapsed { width:62px; padding:8px; }
     .rooms-sidebar.collapsed .sidebar-title,.rooms-sidebar.collapsed .room-link-copy,.rooms-sidebar.collapsed .add-room-button { display:none; }
     .rooms-sidebar.collapsed .sidebar-head { justify-content:center; }
@@ -201,7 +206,7 @@
     body,#app { color:var(--color-text-primary); background:var(--color-page); }
     #viewer { background:radial-gradient(circle at 50% 35%,#F6F8FA 0%,var(--color-canvas) 55%,#DDE3E8 100%); }
     html.dark #viewer { background:radial-gradient(circle at 50% 35%,#263440 0%,var(--color-canvas) 55%,#10171E 100%); }
-    .topbar { background:rgba(255,255,255,.88); border-color:var(--color-border-soft); box-shadow:var(--shadow-xs); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); }
+    .topbar { left:50%; right:auto; width:min(1040px,calc(100% - 180px)); height:58px; gap:12px; padding:6px 8px 6px 12px; background:rgba(255,255,255,.88); border-color:var(--color-border-soft); border-radius:12px; box-shadow:var(--shadow-xs); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); transform:translateX(-50%); }
     .brand { color:var(--color-text-primary); }.brand-mark { color:var(--color-text-inverse); background:var(--color-primary); box-shadow:var(--shadow-sm); }
     .nav-button { color:var(--color-text-secondary); }.nav-button:hover { color:var(--color-text-primary); background:var(--color-surface-hover); }.nav-button.active { color:var(--color-primary); background:var(--color-primary-soft); border:1px solid var(--color-primary-border); }
     .icon-button { color:var(--color-text-secondary); background:var(--color-glass); border-color:var(--color-border-soft); }.icon-button:hover { color:var(--color-primary); background:var(--color-surface); border-color:var(--color-primary-border); box-shadow:var(--shadow-sm); }.icon-button.active { color:var(--color-primary-active); background:var(--color-primary-soft); border-color:var(--color-primary-border); }
@@ -227,6 +232,28 @@
     #loading-screen { color:var(--color-text-primary); background:var(--color-page); }.loader,.upload-progress { background:var(--color-surface-muted); }.loader::after,.upload-progress span { background:var(--color-primary); }#error-message { color:var(--color-danger); background:var(--color-danger-soft); border:1px solid var(--color-danger-border); }
     .mobile-nav { background:var(--color-glass-strong); border-color:var(--color-border-soft); box-shadow:0 -6px 24px rgba(23,32,42,.08); backdrop-filter:blur(16px); }.mobile-nav .nav-button { color:var(--color-text-muted); }.mobile-nav .nav-button.active { color:var(--color-primary); background:var(--color-primary-soft); }
     html.dark .room-page,html.dark .mode-panel { background:rgba(17,24,32,.97); }
+
+    /* Компактная верхняя панель тёмного BIM-интерфейса */
+    html.dark .topbar {
+      color:var(--header-text); background:var(--header-bg); border:1px solid var(--header-border); border-radius:12px;
+      box-shadow:var(--header-shadow); backdrop-filter:blur(12px) saturate(125%); -webkit-backdrop-filter:blur(12px) saturate(125%); transform:translateX(-50%);
+    }
+    html.dark .topbar .brand { gap:9px; padding-right:14px; color:var(--header-text); border-right:1px solid var(--header-divider); font-weight:720; }
+    html.dark .topbar .brand-mark { width:34px; height:34px; color:var(--header-accent-hover); background:var(--header-accent-soft); border:1px solid var(--header-accent-border); border-radius:9px; box-shadow:none; }
+    html.dark .topbar .brand-mark .icon { width:18px; }
+    html.dark .topbar .nav { flex:1 1 auto; gap:2px; }
+    html.dark .topbar .nav-button { min-height:38px; gap:7px; padding:0 10px; color:var(--header-text-secondary); background:transparent; border:1px solid transparent; border-radius:8px; font-weight:620; }
+    html.dark .topbar .nav-button .icon { color:var(--header-icon); }
+    html.dark .topbar .nav-button:hover { color:var(--header-icon-hover); background:var(--header-bg-hover); border-color:var(--header-border); }
+    html.dark .topbar .nav-button:hover .icon { color:var(--header-icon-hover); }
+    html.dark .topbar .nav-button.active { color:var(--header-accent-hover); background:var(--header-accent-soft); border-color:var(--header-accent-border); box-shadow:none; }
+    html.dark .topbar .nav-button.active .icon { color:var(--header-accent); }
+    html.dark .topbar .nav-button:focus-visible,html.dark .topbar .icon-button:focus-visible { box-shadow:var(--header-focus); }
+    html.dark .topbar .top-actions { align-items:center; gap:2px; margin-left:2px; padding-left:9px; border-left:1px solid var(--header-divider); }
+    html.dark .topbar .icon-button { width:36px; height:36px; color:var(--header-icon); background:transparent; border:1px solid transparent; border-radius:8px; box-shadow:none; }
+    html.dark .topbar .icon-button:hover { color:var(--header-icon-hover); background:var(--header-bg-hover); border-color:var(--header-border); box-shadow:none; transform:none; }
+    html.dark .topbar .icon-button.active { color:var(--header-accent-hover); background:var(--header-accent-soft); border-color:var(--header-accent-border); }
+    html.dark .topbar .icon-button .icon { width:18px; height:18px; }
     :focus-visible { outline:none; box-shadow:var(--focus-ring); }
     ::-webkit-scrollbar { width:10px; height:10px; }::-webkit-scrollbar-track { background:transparent; }::-webkit-scrollbar-thumb { background:#C7D0D8; border:3px solid transparent; border-radius:999px; background-clip:content-box; }::-webkit-scrollbar-thumb:hover { background:#AEB9C3; border:3px solid transparent; background-clip:content-box; }
 
@@ -234,12 +261,15 @@
     @keyframes panel-in { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
     @keyframes rise { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
     @media (max-width:1100px) { .rooms-sidebar { transform:translateX(calc(100% + 20px)); }.rooms-sidebar.open { transform:none; }.rooms-mobile-button { display:block; }.tools { right:18px; top:142px; } }
-    @media (max-width:980px) { .nav-button span { display:none; } .nav-button { width:42px; padding:0; justify-content:center; } .room-grid,.gallery-grid,.docs-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media (max-width:980px) { .nav-button span { display:none; } .nav-button { width:42px; padding:0; justify-content:center; } html.dark .topbar .nav-button { width:38px; padding:0; justify-content:center; } .room-grid,.gallery-grid,.docs-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
     @media (max-width:700px) {
-      .topbar { top:max(8px,env(safe-area-inset-top)); left:8px; right:8px; height:54px; padding:6px 7px 6px 12px; border-radius:15px; }
+      .topbar { top:max(8px,env(safe-area-inset-top)); left:8px; right:8px; width:auto; height:54px; padding:6px 7px 6px 12px; border-radius:11px; transform:none; }
+      html.dark .topbar { left:8px; right:8px; width:auto; height:54px; padding:5px 6px 5px 10px; border-radius:11px; transform:none; }
+      html.dark .topbar .brand { padding-right:10px; border-right:0; }
+      html.dark .topbar .top-actions { margin-left:auto; padding-left:7px; }
       .brand-mark { width:34px; height:34px; } .brand>span { font-size:14px; } .nav { display:none; }
       .tools { top:76px; right:10px; padding:5px; } .tools .tool:not(.mobile-visible) { display:none; } .tool::after { display:none; }
-      .project-card { left:12px; bottom:calc(82px + env(safe-area-inset-bottom)); width:205px; padding:14px; border-radius:16px; }
+      .project-card { top:auto; left:12px; bottom:calc(82px + env(safe-area-inset-bottom)); width:205px; padding:14px; border-radius:16px; }
       .project-card h1 { margin-bottom:9px; font-size:17px; } .project-meta { gap:5px; } .updated { display:none; }
       .mode-panel { inset:70px 8px calc(76px + env(safe-area-inset-bottom)); padding:20px 14px; border-radius:18px; }
       .panel-head { display:block; margin-bottom:20px; } .panel-head h2 { font-size:28px; } .panel-head p { font-size:13px; } .panel-head>.primary { margin-top:14px; }
@@ -309,7 +339,7 @@
   <dialog id="add-room-modal" class="upload-modal"><form id="add-room-form" class="upload-modal-form"><h2>Добавить помещение</h2><p class="status">Заполните данные новой комнаты.</p><div class="upload-modal-grid"><label class="field">Название<input id="new-room-name" maxlength="60" placeholder="Например, Детская" required></label><label class="field">Площадь, м²<input id="new-room-area" type="number" min="0" max="10000" step="0.1" placeholder="18.5" required></label><div class="field full"><span>Иконка</span><div id="new-room-icons" class="icon-picker" role="radiogroup" aria-label="Иконка помещения"></div><input id="new-room-icon" type="hidden" value="🏠"></div><label class="field full">Пароль<input id="new-room-password" type="password" autocomplete="current-password" placeholder="Пароль для добавления" required></label></div><p id="add-room-state" class="upload-state" aria-live="polite"></p><div class="modal-actions"><button id="add-room-cancel" class="secondary" type="button">Отмена</button><button id="add-room-submit" class="primary" type="submit">Добавить помещение</button></div></form></dialog>
   <div id="loading-screen"><div class="loading-brand"><span class="brand-mark"><svg class="icon"><path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9"/></svg></span>House Reviewer</div><div class="loader"></div><div id="loading-text">Загрузка проекта...</div><div id="error-message"></div></div>
 </div>
-<script>window.MODEL_API_URL="https://house-viewer.onrender.com";</script>
+<script>window.MODEL_API_URL=["localhost","127.0.0.1"].includes(location.hostname)?"http://localhost:3001":"https://house-viewer.onrender.com";</script>
 <script src="./scripts/rooms-data.js"></script>
 <script type="module" src="./scripts/app.js"></script>
 <script src="./scripts/interface.js"></script>
