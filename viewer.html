@@ -20,6 +20,16 @@
       --shadow-xs:0 1px 2px rgba(23,32,42,.05); --shadow-sm:0 4px 12px rgba(23,32,42,.07); --shadow-md:0 10px 30px rgba(23,32,42,.10); --shadow-lg:0 20px 50px rgba(23,32,42,.14); --focus-ring:0 0 0 3px rgba(59,111,158,.22);
       --bg:var(--color-page); --panel:var(--color-glass); --white:var(--color-surface); --text:var(--color-text-primary); --muted:var(--color-text-muted); --line:var(--color-border-soft); --accent:var(--color-primary); --accent-soft:var(--color-primary-soft); --danger:var(--color-danger); --shadow:var(--shadow-md); --radius:20px;
     }
+    html.dark {
+      color-scheme:dark;
+      --color-page:#111820; --color-canvas:#18222C; --color-surface:#1D2731; --color-surface-soft:#222E39; --color-surface-muted:#293642; --color-surface-hover:#2C3945; --color-surface-active:#263B4D;
+      --color-text-primary:#E7ECF0; --color-text-secondary:#B5C0C9; --color-text-muted:#8997A3; --color-text-disabled:#64727E;
+      --color-border:#3A4854; --color-border-soft:#303D48; --color-border-strong:#4A5965;
+      --color-primary:#79A8D0; --color-primary-hover:#8BB7DA; --color-primary-active:#A2C6E2; --color-primary-soft:#243B4E; --color-primary-border:#3E617C;
+      --color-success:#7DB294; --color-success-soft:#20382C; --color-success-border:#355C45; --color-warning:#D3A263; --color-warning-soft:#402F1F; --color-warning-border:#654A2D; --color-danger:#D98282; --color-danger-soft:#452727; --color-danger-border:#704040;
+      --color-overlay:rgba(5,9,13,.58); --color-overlay-strong:rgba(5,9,13,.78); --color-glass:rgba(29,39,49,.88); --color-glass-strong:rgba(29,39,49,.95);
+      --shadow-xs:0 1px 2px rgba(0,0,0,.18); --shadow-sm:0 4px 12px rgba(0,0,0,.22); --shadow-md:0 10px 30px rgba(0,0,0,.30); --shadow-lg:0 20px 50px rgba(0,0,0,.40); --focus-ring:0 0 0 3px rgba(121,168,208,.28);
+    }
     * { box-sizing:border-box; }
     html,body,#app { width:100%; height:100%; margin:0; overflow:hidden; }
     body { min-width:320px; color:var(--text); background:var(--bg); font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; -webkit-font-smoothing:antialiased; }
@@ -64,8 +74,12 @@
     .tool .icon { display:block; width:20px; height:20px; margin:auto; }
     .rooms-sidebar > .tools { top:0; right:auto; left:-64px; }
     .rooms-sidebar { position:absolute; z-index:18; top:88px; right:14px; bottom:14px; width:280px; display:flex; flex-direction:column; padding:16px; background:var(--panel); border:1px solid rgba(255,255,255,.95); border-radius:20px; box-shadow:var(--shadow); backdrop-filter:blur(22px); transition:.25s ease; }
-    .rooms-sidebar.collapsed { width:62px; padding:10px; }
+    .rooms-sidebar.collapsed { width:62px; padding:8px; }
     .rooms-sidebar.collapsed .sidebar-title,.rooms-sidebar.collapsed .room-link-copy,.rooms-sidebar.collapsed .add-room-button { display:none; }
+    .rooms-sidebar.collapsed .sidebar-head { justify-content:center; }
+    .rooms-sidebar.collapsed .room-links { justify-items:center; }
+    .rooms-sidebar.collapsed .room-link { width:46px; min-height:46px; justify-content:center; gap:0; padding:4px; }
+    .rooms-sidebar.collapsed .room-link-icon { flex-basis:38px; }
     .sidebar-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px; }
     .sidebar-head h2 { margin:0; font-size:17px; }
     .room-links { display:grid; gap:7px; overflow:auto; }
@@ -186,6 +200,7 @@
     /* Единая светлая палитра */
     body,#app { color:var(--color-text-primary); background:var(--color-page); }
     #viewer { background:radial-gradient(circle at 50% 35%,#F6F8FA 0%,var(--color-canvas) 55%,#DDE3E8 100%); }
+    html.dark #viewer { background:radial-gradient(circle at 50% 35%,#263440 0%,var(--color-canvas) 55%,#10171E 100%); }
     .topbar { background:rgba(255,255,255,.88); border-color:var(--color-border-soft); box-shadow:var(--shadow-xs); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); }
     .brand { color:var(--color-text-primary); }.brand-mark { color:var(--color-text-inverse); background:var(--color-primary); box-shadow:var(--shadow-sm); }
     .nav-button { color:var(--color-text-secondary); }.nav-button:hover { color:var(--color-text-primary); background:var(--color-surface-hover); }.nav-button.active { color:var(--color-primary); background:var(--color-primary-soft); border:1px solid var(--color-primary-border); }
@@ -211,6 +226,7 @@
     dialog:not(.upload-modal) { background:rgba(14,19,24,.96); box-shadow:var(--shadow-lg); } dialog::backdrop { background:var(--color-overlay-strong); }.lightbox-close { color:var(--color-text-inverse); background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); }
     #loading-screen { color:var(--color-text-primary); background:var(--color-page); }.loader,.upload-progress { background:var(--color-surface-muted); }.loader::after,.upload-progress span { background:var(--color-primary); }#error-message { color:var(--color-danger); background:var(--color-danger-soft); border:1px solid var(--color-danger-border); }
     .mobile-nav { background:var(--color-glass-strong); border-color:var(--color-border-soft); box-shadow:0 -6px 24px rgba(23,32,42,.08); backdrop-filter:blur(16px); }.mobile-nav .nav-button { color:var(--color-text-muted); }.mobile-nav .nav-button.active { color:var(--color-primary); background:var(--color-primary-soft); }
+    html.dark .room-page,html.dark .mode-panel { background:rgba(17,24,32,.97); }
     :focus-visible { outline:none; box-shadow:var(--focus-ring); }
     ::-webkit-scrollbar { width:10px; height:10px; }::-webkit-scrollbar-track { background:transparent; }::-webkit-scrollbar-thumb { background:#C7D0D8; border:3px solid transparent; border-radius:999px; background-clip:content-box; }::-webkit-scrollbar-thumb:hover { background:#AEB9C3; border:3px solid transparent; background-clip:content-box; }
 
@@ -229,7 +245,7 @@
       .panel-head { display:block; margin-bottom:20px; } .panel-head h2 { font-size:28px; } .panel-head p { font-size:13px; } .panel-head>.primary { margin-top:14px; }
       .room-grid,.gallery-grid,.docs-grid { grid-template-columns:1fr; gap:12px; } .room-visual { aspect-ratio:16/9; }.media-showcase { padding:8px; }.media-stage,.media-main img { min-height:260px; height:42vh; }.media-arrow { width:40px; height:48px; }.media-arrow.previous { left:8px; }.media-arrow.next { right:8px; }
       .note-composer { grid-template-columns:1fr; } .pin-board { min-height:440px; } .doc-card { min-height:100px; }
-      .mobile-nav { position:absolute; z-index:50; right:8px; bottom:max(8px,env(safe-area-inset-bottom)); left:8px; display:flex; height:64px; align-items:center; justify-content:space-around; padding:6px; background:rgba(255,255,255,.9); border:1px solid rgba(255,255,255,.95); border-radius:18px; box-shadow:0 10px 35px rgba(15,23,42,.16); backdrop-filter:blur(22px); }
+      .mobile-nav { position:absolute; z-index:50; right:8px; bottom:max(8px,env(safe-area-inset-bottom)); left:8px; display:flex; height:64px; align-items:center; justify-content:space-around; padding:6px; background:var(--color-glass-strong); border:1px solid var(--color-border-soft); border-radius:18px; box-shadow:var(--shadow-md); backdrop-filter:blur(22px); }
       .mobile-nav .nav-button { display:flex; width:auto; min-width:50px; height:52px; flex-direction:column; gap:2px; padding:5px 8px; font-size:10px; }
       .mobile-nav .nav-button span { display:block; } .mobile-nav .nav-button .icon { width:19px; }
       .drawer { top:70px; right:8px; width:calc(100% - 16px); }
@@ -251,6 +267,7 @@
       <button class="nav-button" data-mode="notes"><svg class="icon"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg><span>Заметки</span></button>
     </nav>
     <div class="top-actions">
+      <button id="theme-button" class="icon-button" title="Тёмная тема" aria-label="Включить тёмную тему" aria-pressed="false"><svg class="icon"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/></svg></button>
       <button class="icon-button settings-toggle" title="Настройки"><svg class="icon"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H3v-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6V3h4v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.2L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg></button>
     </div>
   </header>

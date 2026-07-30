@@ -19,7 +19,10 @@
   });
 
   document.querySelectorAll(".settings-toggle").forEach((button) => button.addEventListener("click", () => document.getElementById("settings-drawer").classList.toggle("open")));
-  document.documentElement.classList.remove("dark"); localStorage.removeItem("theme");
+  const themeButton = document.getElementById("theme-button");
+  function setTheme(dark) { document.documentElement.classList.toggle("dark", dark); themeButton.classList.toggle("active", dark); themeButton.setAttribute("aria-pressed", dark); themeButton.setAttribute("aria-label", dark ? "Включить светлую тему" : "Включить тёмную тему"); themeButton.title = dark ? "Светлая тема" : "Тёмная тема"; document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#111820" : "#F4F6F8"); localStorage.setItem("theme", dark ? "dark" : "light"); window.dispatchEvent(new CustomEvent("theme-changed", { detail:{ dark } })); }
+  setTheme(localStorage.getItem("theme") === "dark" || (!localStorage.getItem("theme") && matchMedia("(prefers-color-scheme:dark)").matches));
+  themeButton.onclick = () => setTheme(!document.documentElement.classList.contains("dark"));
   document.addEventListener("keydown", (event) => { if (event.key === "Escape") { document.getElementById("settings-drawer").classList.remove("open"); activeNoteId = null; renderPins(); } });
 
   function roomTile(key, room) {
