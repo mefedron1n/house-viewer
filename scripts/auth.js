@@ -1,6 +1,6 @@
 (() => {
   const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
-  const API = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? "http://localhost:3001" : (window.HOUSE_REVIEWER_API || "https://house-viewer-api.onrender.com");
+  const API = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? location.origin : (window.HOUSE_REVIEWER_API || "https://house-viewer-api.onrender.com");
   const request = async (path, options = {}) => { const response = await fetch(`${API}${path}`, { ...options, credentials: "include", headers: { "Content-Type": "application/json", ...(options.headers || {}) } }); const body = await response.json().catch(() => null); if (!response.ok) throw new Error(body?.error || "Сервис временно недоступен. Попробуйте ещё раз."); return body; };
   const form = $("#auth-form"), status = $("#auth-status"), submit = form.querySelector('[type="submit"]'), password = form.password;
   let mode = new URLSearchParams(location.search).get("mode") === "register" ? "register" : "login";
