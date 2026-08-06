@@ -6,6 +6,7 @@ import path from "node:path";
 import express from "express";
 import cors from "cors";
 import multer from "multer";
+import { promisify } from "node:util";
 
 const root = path.resolve(process.env.MODEL_STORAGE_DIR || "./data/models");
 const maxBytes = Number(process.env.MAX_UPLOAD_MB || 200) * 1024 * 1024;
@@ -16,6 +17,8 @@ const uploadPassword = process.env.UPLOAD_PASSWORD || "test123";
 const roomRoot = path.join(root, "rooms");
 const notesFile = path.join(root, "site-notes.json");
 const roomsFile = path.join(root, "rooms.json");
+const usersFile = path.join(root, "users.json");
+const sessionsFile = path.join(root, "sessions.json");
 const projectRoot = path.join(root, "project");
 const defaultRooms = [
   { id: "kitchen", slug: "kitchen", name: "Кухня-гостиная", area: 28.4 }, { id: "bedroom", slug: "bedroom", name: "Спальня", area: 16.2 },
@@ -40,8 +43,31 @@ export function validUploadPassword(value) {
 async function convert(job) { running++; const dir = path.join(root, job.id), input = path.join(dir, "input.ifc"), output = path.join(dir, "model.glb"), metadata = path.join(dir, "metadata.json"); try { stage(job, "validating", "Проверка IFC"); const source = await fs.readFile(input); if (!ifcHeader(source)) throw new Error("Файл не похож на корректный IFC (не найдена заголовочная структура STEP)."); await fs.writeFile(metadata, JSON.stringify(extractMetadata(source.toString("utf8")), null, 2)); stage(job, "converting", "Создание геометрии"); await new Promise((resolve, reject) => { const child = spawn(process.env.IFC_CONVERT_PATH || "IfcConvert", ["--center-model", input, output], { shell: false, windowsHide: true }); const timer = setTimeout(() => { child.kill(); reject(new Error("Превышено время преобразования IFC.")); }, timeoutMs); child.on("error", (e) => { clearTimeout(timer); reject(e.code === "ENOENT" ? new Error("IfcConvert не найден на сервере.") : e); }); child.on("close", (code) => { clearTimeout(timer); code === 0 ? resolve() : reject(new Error("IfcConvert завершился с ошибкой.")); }); }); stage(job, "optimizing", "Подготовка модели"); await fs.rm(input, { force: true }); job.status = "ready"; job.stage = "Модель готова"; job.modelUrl = `/api/models/${job.id}/model.glb`; job.metadataUrl = `/api/models/${job.id}/metadata.json`; } catch (error) { job.status = "failed"; job.stage = "Ошибка преобразования"; job.error = error.message || "Не удалось преобразовать IFC."; } finally { running--; processQueue(); } }
 function processQueue() { for (const job of jobs.values()) if (running < maxConcurrent && job.status === "queued") convert(job); }
 export const app = express();
-app.use(cors({ origin: process.env.FRONTEND_ORIGIN || false }));
+app.use(cors({ origin: process.env.FRONTEND_ORIGIN || false, credentials: true }));
 app.use(express.json({ limit: "16kb" }));
+
+const scrypt = promisify(crypto.scrypt);
+const sessionMaxAge = 30 * 24 * 3600_000;
+const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
+const validEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && value.length <= 254;
+const publicUser = ({ id, name, email, createdAt }) => ({ id, name, email, createdAt });
+async function readJsonArray(file) { try { const value = JSON.parse(await fs.readFile(file, "utf8")); return Array.isArray(value) ? value : []; } catch (error) { if (error.code === "ENOENT" || error instanceof SyntaxError) return []; throw error; } }
+async function writeJsonArray(file, value) { await fs.mkdir(root, { recursive: true }); const temporary = `${file}.${crypto.randomBytes(6).toString("hex")}.tmp`; await fs.writeFile(temporary, JSON.stringify(value, null, 2), { mode: 0o600 }); await fs.rename(temporary, file); }
+let authWrite = Promise.resolve();
+function updateAuth(operation) { const result = authWrite.then(operation); authWrite = result.catch(() => {}); return result; }
+async function hashPassword(password) { const salt = crypto.randomBytes(16); const derived = await scrypt(password, salt, 64); return `scrypt:${salt.toString("hex")}:${derived.toString("hex")}`; }
+async function verifyPassword(password, stored) { const [, saltHex, hashHex] = String(stored).split(":"); if (!saltHex || !hashHex) return false; const expected = Buffer.from(hashHex, "hex"), actual = await scrypt(password, Buffer.from(saltHex, "hex"), expected.length); return actual.length === expected.length && crypto.timingSafeEqual(actual, expected); }
+function cookies(req) { return Object.fromEntries(String(req.headers.cookie || "").split(";").map((part) => part.trim().split(/=(.*)/s).slice(0, 2)).filter(([key]) => key).map(([key, value]) => [key, decodeURIComponent(value || "")])); }
+function cookiePolicy() { return process.env.NODE_ENV === "production" ? "SameSite=None; Secure" : "SameSite=Lax"; }
+function setSessionCookie(res, token) { res.setHeader("Set-Cookie", `hr_session=${encodeURIComponent(token)}; HttpOnly; Path=/; ${cookiePolicy()}; Max-Age=${sessionMaxAge / 1000}`); }
+function clearSessionCookie(res) { res.setHeader("Set-Cookie", `hr_session=; HttpOnly; Path=/; ${cookiePolicy()}; Max-Age=0`); }
+async function createSession(userId, res) { const token = crypto.randomBytes(32).toString("hex"), tokenHash = crypto.createHash("sha256").update(token).digest("hex"), expiresAt = Date.now() + sessionMaxAge; await updateAuth(async () => { const sessions = (await readJsonArray(sessionsFile)).filter((item) => item.expiresAt > Date.now()); sessions.push({ tokenHash, userId, expiresAt }); await writeJsonArray(sessionsFile, sessions); }); setSessionCookie(res, token); }
+async function currentUser(req) { const token = cookies(req).hr_session; if (!token) return null; const tokenHash = crypto.createHash("sha256").update(token).digest("hex"), sessions = await readJsonArray(sessionsFile), session = sessions.find((item) => item.tokenHash === tokenHash && item.expiresAt > Date.now()); if (!session) return null; return (await readJsonArray(usersFile)).find((user) => user.id === session.userId) || null; }
+
+app.post("/api/auth/register", async (req, res, next) => { try { const name = String(req.body.name || "").trim().replace(/\s+/g, " "), email = normalizeEmail(req.body.email), password = String(req.body.password || ""); if (name.length < 2 || name.length > 80) return res.status(400).json({ error: "Укажите имя длиной от 2 до 80 символов." }); if (!validEmail(email)) return res.status(400).json({ error: "Укажите корректный адрес электронной почты." }); if (password.length < 8 || password.length > 128 || !/[a-zа-яё]/i.test(password) || !/\d/.test(password)) return res.status(400).json({ error: "Пароль должен содержать не менее 8 символов, букву и цифру." }); let user; await updateAuth(async () => { const users = await readJsonArray(usersFile); if (users.some((item) => item.email === email)) { const error = new Error("EMAIL_EXISTS"); error.status = 409; throw error; } user = { id: crypto.randomBytes(16).toString("hex"), name, email, passwordHash: await hashPassword(password), createdAt: new Date().toISOString() }; users.push(user); await writeJsonArray(usersFile, users); }); await createSession(user.id, res); res.status(201).json({ user: publicUser(user) }); } catch (error) { if (error.message === "EMAIL_EXISTS") return res.status(409).json({ error: "Аккаунт с такой почтой уже существует." }); next(error); } });
+app.post("/api/auth/login", async (req, res, next) => { try { const email = normalizeEmail(req.body.email), password = String(req.body.password || ""), user = (await readJsonArray(usersFile)).find((item) => item.email === email); if (!user || !await verifyPassword(password, user.passwordHash)) return res.status(401).json({ error: "Неверная почта или пароль." }); await createSession(user.id, res); res.json({ user: publicUser(user) }); } catch (error) { next(error); } });
+app.get("/api/auth/me", async (req, res, next) => { try { const user = await currentUser(req); if (!user) return res.status(401).json({ error: "Требуется вход." }); res.set("Cache-Control", "no-store").json({ user: publicUser(user) }); } catch (error) { next(error); } });
+app.post("/api/auth/logout", async (req, res, next) => { try { const token = cookies(req).hr_session; if (token) { const tokenHash = crypto.createHash("sha256").update(token).digest("hex"); await updateAuth(async () => writeJsonArray(sessionsFile, (await readJsonArray(sessionsFile)).filter((item) => item.tokenHash !== tokenHash))); } clearSessionCookie(res); res.status(204).end(); } catch (error) { next(error); } });
 const requireUploadPassword = (req, res, next) => validUploadPassword(req.get("x-upload-password")) ? next() : res.status(401).json({ error: "Неверный пароль для загрузки." });
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: maxBytes }, fileFilter: (_, file, cb) => cb(null, path.extname(file.originalname).toLowerCase() === ".ifc" && (!file.mimetype || /ifc|octet-stream|text\/plain/.test(file.mimetype))) });
 app.post("/api/models", requireUploadPassword, upload.single("model"), async (req, res, next) => { try { if (!req.file) return res.status(400).json({ error: "Нужен IFC-файл в поле model." }); if (!ifcHeader(req.file.buffer)) return res.status(400).json({ error: "Файл не похож на корректный IFC." }); const id = crypto.randomBytes(16).toString("hex"), dir = path.join(root, id); await fs.mkdir(dir, { recursive: true }); await fs.writeFile(path.join(dir, "input.ifc"), req.file.buffer); const job = { id, status: "queued", stage: "Файл принят", createdAt: Date.now() }; jobs.set(id, job); processQueue(); res.status(202).json({ jobId: id, status: "processing" }); } catch (e) { next(e); } });

@@ -1,0 +1,6 @@
+(() => {
+  const API = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? "http://localhost:3001" : (window.HOUSE_REVIEWER_API || "https://house-viewer-api.onrender.com");
+  const request = (path, options = {}) => fetch(`${API}${path}`, { ...options, credentials: "include" });
+  document.querySelector("#studio-main").setAttribute("aria-busy", "true");
+  request("/api/auth/me").then(async (response) => { if (!response.ok) throw new Error("unauthorized"); const { user } = await response.json(); localStorage.setItem("houseReviewerUser", JSON.stringify(user)); const script = document.createElement("script"); script.src = "./scripts/editorial.js?v=2"; script.onload = () => { document.querySelector("#studio-main").removeAttribute("aria-busy"); const avatar = document.querySelector("#logout-button"); avatar.textContent = user.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase(); avatar.onclick = async () => { avatar.disabled = true; try { await request("/api/auth/logout", { method: "POST" }); } finally { localStorage.removeItem("houseReviewerUser"); location.href = "./"; } }; }; document.body.append(script); }).catch(() => { location.replace("./auth.html"); });
+})();
