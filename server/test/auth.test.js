@@ -23,6 +23,15 @@ test("registration creates a durable account and cookie session", async () => {
 
     const me = await fetch(`${base}/api/auth/me`, { headers: { Cookie: cookie } });
     assert.equal(me.status, 200);
+    const createdProjectResponse = await fetch(`${base}/api/projects`, { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json" }, body: JSON.stringify({ name: "Дом у сосен", area: 128, rooms: 5, theme: "Тёплый" }) });
+    assert.equal(createdProjectResponse.status, 201);
+    const createdProject = await createdProjectResponse.json();
+    assert.match(createdProject.id, /^[a-f0-9]{24}$/);
+    const updatedProject = await fetch(`${base}/api/projects/${createdProject.id}`, { method: "PATCH", headers: { Cookie: cookie, "Content-Type": "application/json" }, body: JSON.stringify({ name: "Дом у озера", area: 130, rooms: 6, theme: "Нейтральный" }) });
+    assert.equal(updatedProject.status, 200);
+    assert.equal((await updatedProject.json()).name, "Дом у озера");
+    const projects = await fetch(`${base}/api/projects`, { headers: { Cookie: cookie } }).then((response) => response.json());
+    assert.equal(projects.length, 1);
     const duplicate = await fetch(`${base}/api/auth/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Другая Анна", email: "anna@example.com", password: "house2026" }) });
     assert.equal(duplicate.status, 409);
     const logout = await fetch(`${base}/api/auth/logout`, { method: "POST", headers: { Cookie: cookie } });
