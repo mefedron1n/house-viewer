@@ -44,7 +44,10 @@ async function convert(job) { running++; const dir = path.join(root, job.id), in
 function processQueue() { for (const job of jobs.values()) if (running < maxConcurrent && job.status === "queued") convert(job); }
 export const app = express();
 const configuredOrigins = String(process.env.FRONTEND_ORIGIN || "").split(",").map((value) => value.trim()).filter(Boolean);
-const localOrigins = ["http://localhost:8080", "http://127.0.0.1:8080"];
+const localOrigins = [
+  "http://localhost:8000", "http://127.0.0.1:8000",
+  "http://localhost:8080", "http://127.0.0.1:8080"
+];
 const allowedOrigins = new Set([...configuredOrigins, ...(process.env.NODE_ENV === "production" ? [] : localOrigins)]);
 app.use(cors({ origin(origin, callback) { callback(null, !origin || allowedOrigins.has(origin)); }, credentials: true }));
 app.use(express.json({ limit: "16kb" }));
