@@ -1,45 +1,113 @@
-# House viewer
+# House Reviewer
 
-Single-screen House Reviewer interface built around a Three.js model, with plan, photo, render, document and shared-note modes. The original model is loaded from `models/house.glb`; viewer controls, fitting, walls toggle, lighting, screenshots, camera transitions and fullscreen remain available.
+Static architectural project frontend with a Three.js viewer and a Node/Express API for projects, room media, notes and IFC → GLB conversion.
 
-## Architecture
+## Local development
 
-`viewer.html` and `scripts/app.js` are the static frontend. `server/index.js` is a deliberately local, single-process queue: it validates IFC, runs `IfcConvert` without a shell, writes `model.glb` and `metadata.json`, and exposes `/api/models` routes. It is not a multi-server queue.
-
-## Run
-
-Start the API with Docker (copy `.env.example` to `server/.env` and set the real static-site origin):
+Requirements: Node.js 22+, npm and a compatible `IfcConvert` binary.
 
 ```sh
+cp server/.env.example server/.env
+cd server
+npm ci
+npm start
+```
+
+In another terminal, serve the repository root. Same-origin API proxying is not provided by Python, so either set `window.HOUSE_REVIEWER_API_URL` before `scripts/config.js` or use Docker (recommended).
+
+The frontend has one runtime configuration source: `scripts/config.js`. By default it uses `location.origin`. For a separately hosted API, inject this before `config.js`:
+
+```html
+<script>window.HOUSE_REVIEWER_API_URL = "https://api.your-domain.example";</script>
+```
+
+## Docker
+
+```sh
+cp server/.env.example server/.env
 docker compose up --build
 ```
 
-Serve the project root (not the `server` directory) with a static HTTP server, then open `index.html`. For example, from the directory containing this README:
+Open `http://localhost:8080`. Nginx serves the static frontend and proxies `/api` to the backend. Persistent local data is stored in the `ifc-models` Docker volume. `docker compose down` preserves it; `docker compose down -v` deletes it.
 
-```sh
-python3 -m http.server 8000
+## Environment variables
+
+See the documented, safe template in `server/.env.example`.
+
+- `PORT`, `HOST`, `NODE_ENV` — HTTP process settings.
+- `ALLOWED_ORIGINS` — comma-separated exact browser origins (`CORS_ORIGINS` remains a compatibility alias).
+- `ALLOWED_HOSTS` — exact public API/proxy hosts accepted by the backend.
+- `TRUST_PROXY_HOPS` — set to `1` only behind one trusted reverse proxy.
+- `STORAGE_DRIVER` — currently only `local`.
+- `MODEL_STORAGE_DIR` — persistent local results and user media.
+- `TEMP_DIR` — disposable IFC conversion workspace.
+- `IFC_CONVERT_PATH` — converter executable.
+- `MAX_IFC_UPLOAD_MB`, `MAX_GLB_UPLOAD_MB`, `MAX_IMAGE_UPLOAD_MB` — separate disk-upload limits.
+- `MAX_IMAGE_WIDTH`, `MAX_IMAGE_HEIGHT`, `MAX_IMAGE_PIXELS` — decoded-image limits.
+- `CONVERSION_TIMEOUT_MS`, `MAX_CONCURRENT_CONVERSIONS`, `MAX_CONVERSION_QUEUE`, `MAX_USER_CONVERSION_JOBS` — converter and queue limits.
+- `LOGIN_RATE_LIMIT_*`, `REGISTER_RATE_LIMIT_*`, `CONVERSION_RATE_LIMIT_*` — per-process abuse limits.
+- `UPLOAD_PASSWORD` — required in production; never commit it.
+- `SHUTDOWN_TIMEOUT_MS` — graceful conversion drain time.
+
+## Architecture
+
+Current:
+
+```text
+Browser / static frontend
+          |
+          v
+      Express API
+          |
+   in-memory queue (1 process)
+          |
+      IfcConvert
+          |
+   LocalStorage driver
 ```
 
-Open `http://localhost:8000/` for the public product site. On `localhost` and `127.0.0.1` the viewer uses the Docker API at `http://localhost:3001`; on the deployed site it uses the Render API. Check local conversion support at `http://localhost:3001/health`.
+Planned production:
 
-The public product experience starts at `/`. Authentication and the product workspace are available at `/auth.html` and `/studio.html`. The workspace includes overview, project list and a four-step project wizard; the existing `/viewer.html` remains the shared interactive property template.
+```text
+Cloudflare Pages  ---> Browser
+                         |
+                         v
+                  VPS reverse proxy
+                         |
+                    Node API
+                         |
+                    IfcConvert
+                         |
+                  Cloudflare R2
 
-For a local Node run, install Node 22+, install `IfcConvert` from a compatible IfcOpenShell distribution, then run `npm install` and `npm start` inside `server`.
+Later: PostgreSQL for metadata and Redis/BullMQ for distributed conversion.
+```
 
-Detailed deployment instructions for Netlify + Render are in [docs/render-deploy.md](docs/render-deploy.md).
+The frontend remains a normal static site. The API storage interface currently implements local files only; no fake R2 or database integration is included.
 
-## Supported files and limits
+## Security
 
-GLB is loaded directly in the browser. IFC is uploaded to the API. A single GLTF is accepted by the picker but only works where every resource is embedded; GLTF with separate `.bin` or textures should be exported as GLB. PLA and PLN show an Archicad-to-IFC instruction.
+- Never commit `.env`; use external environment variables in production.
+- Uploaded filenames are not used as server paths. IFC structure and complete GLB chunk boundaries are validated server-side.
+- Large uploads use randomized temporary disk files. Images are decoded with pixel limits and re-encoded before storage.
+- Helmet, CSP, request IDs, an exact CORS allowlist and cookie-origin CSRF checks protect HTTP boundaries.
+- `IfcConvert` runs with `spawn`, an argument array and `shell: false`.
+- IFC uploads are size-limited and rate-limited. The limiter is in-memory and applies per backend instance only.
+- Temporary conversion directories are removed in `finally` after success, failure or timeout.
+- Production errors and logs do not expose cookies, tokens, file contents or absolute paths.
 
-Defaults are 200 MB, one conversion at a time, five-minute conversion timeout, and 24-hour expiry. All are configured in `server/.env`. Job directories use random IDs; filenames never determine paths. Output URLs are stable only while the local TTL lasts and are `private` cached. Add authentication and signed result URLs before storing private production models.
-
-`metadata.json` extracts IFC entity information available in the STEP text (`GlobalId`, IFC type and name). It deliberately states that IfcConvert GLB mesh-to-`GlobalId` matching is not guaranteed; future room tools should use the IFC metadata rather than mesh names.
-
-Each room page can upload a floorplan (JPG/PNG/WEBP), multiple render images, and one GLB room model. The project page also stores a project-wide floorplan under `MODEL_STORAGE_DIR/project` and uses it as the pin-board background. Set `UPLOAD_PASSWORD` on Render (the development default is `test123`) and attach a persistent disk for durable content.
-
-The home page also has a shared numbered notes list. Notes are written atomically to `MODEL_STORAGE_DIR/site-notes.json` and are excluded from model TTL cleanup; adding, moving and deleting notes requires the same upload password. Production must mount `MODEL_STORAGE_DIR` on a persistent disk, otherwise local files can disappear when the host restarts or redeploys.
+`server/.env` was previously tracked. No API key or access token was found in the current tracked content, but if any real `UPLOAD_PASSWORD` or external credential ever existed in that file, rotate/revoke it manually and consider purging it from Git history.
 
 ## Checks
 
-Run `npm test` in `server`. A real conversion still requires a locally available `IfcConvert` and sample IFC; `/health` reports whether it was found.
+```sh
+npm ci --prefix server
+npm test --prefix server
+npm audit --prefix server
+docker compose config
+docker compose build
+```
+
+`GET /health` is deliberately lightweight and returns process health without invoking IfcConvert. A real conversion check requires a valid sample IFC; no synthetic large fixture is committed.
+
+Further production planning: [production architecture](docs/production-architecture.md), [storage](docs/storage.md), [multi-tenant model](docs/multi-tenant.md).

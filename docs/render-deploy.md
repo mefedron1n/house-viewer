@@ -12,7 +12,7 @@
    docker compose up --build
    ```
 
-   После запуска откройте `http://localhost:3001/health`. Значение `ifcConvert: true` означает, что бинарник найден внутри контейнера.
+   После запуска откройте `http://localhost:3001/health`. Безопасный ответ: `{ "ok": true }`.
 
 ## 2. Создайте Web Service
 
@@ -41,16 +41,21 @@ PORT=3001
 FRONTEND_ORIGIN=https://YOUR-SITE.netlify.app
 IFC_CONVERT_PATH=IfcConvert
 MODEL_STORAGE_DIR=/data/models
-MAX_UPLOAD_MB=200
+MAX_IFC_UPLOAD_MB=100
+MAX_GLB_UPLOAD_MB=100
+MAX_IMAGE_UPLOAD_MB=15
+MAX_CONCURRENT_CONVERSIONS=1
+MAX_CONVERSION_QUEUE=10
+MAX_USER_CONVERSION_JOBS=2
 CONVERSION_TIMEOUT_MS=300000
 MAX_CONCURRENT_CONVERSIONS=1
 MODEL_TTL_HOURS=24
-UPLOAD_PASSWORD=test123
+UPLOAD_PASSWORD=<generate-a-long-random-secret>
 ```
 
 `FRONTEND_ORIGIN` должен точно совпадать с доменом Netlify, включая `https://`, без завершающего `/`. Для тестового Netlify preview добавьте отдельный origin только если он действительно нужен; не используйте `*`.
 
-`UPLOAD_PASSWORD` защищает загрузку IFC, планировок, рендеров и моделей комнат. Для публичного сайта замените `test123` на собственный длинный пароль; он проверяется только на Render и не записывается в код интерфейса.
+`UPLOAD_PASSWORD` защищает загрузку IFC, планировок, рендеров и моделей комнат. Создайте собственный длинный случайный пароль; он проверяется только на сервере и не записывается в код интерфейса.
 
 После добавления переменных выберите **Manual Deploy → Deploy latest commit**.
 
@@ -101,7 +106,7 @@ Mount path: /data
 | --- | --- |
 | `ifcConvert: false` | Проверьте build logs. Контейнер не содержит исполняемый `IfcConvert`; исправьте Dockerfile/пакет и пересоберите сервис. |
 | В браузере CORS-ошибка | Проверьте точное значение `FRONTEND_ORIGIN`, включая домен Netlify. После изменения переменной выполните redeploy. |
-| `413` или сообщение о лимите | IFC превышает `MAX_UPLOAD_MB`; увеличьте значение только с учётом памяти и тарифа сервиса. |
+| `413` или сообщение о лимите | Файл превышает соответствующий `MAX_IFC_UPLOAD_MB`, `MAX_GLB_UPLOAD_MB` или `MAX_IMAGE_UPLOAD_MB`; увеличивайте лимит только после оценки диска и времени обработки. |
 | `IfcConvert завершился с ошибкой` | Просмотрите Render Logs: файл может быть неполным или использует неподдерживаемую схему IFC. |
 | Конвертация обрывается | Увеличьте `CONVERSION_TIMEOUT_MS`, но не отключайте timeout. |
 | Готовая модель исчезла | Истёк TTL или сервис перезапустился без persistent disk. Используйте disk либо объектное хранилище. |
@@ -112,3 +117,6 @@ Mount path: /data
 - Для приватных моделей используйте object storage и подписанные ссылки вместо локального диска.
 - Вынесите очередь и статусы в Redis/БД, если потребуется более одного экземпляра.
 - Ограничьте доступ по rate limit и настройте мониторинг ошибок/диска.
+# Устаревший вариант: Render
+
+Этот документ сохранён как справка для прежней схемы. Актуальная целевая архитектура — Cloudflare Pages + VPS + R2; см. `production-architecture.md` и корневой `README.md`.

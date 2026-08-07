@@ -4,7 +4,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 
 const $ = (id) => document.getElementById(id);
-const API_URL = window.MODEL_API_URL || "http://localhost:3001";
+const API_URL = window.HouseConfig?.apiBaseUrl || location.origin;
 const viewer = $("viewer"), loadingScreen = $("loading-screen"), loadingText = $("loading-text"), errorMessage = $("error-message"), roomCard = $("room-card");
 const pageParams = new URLSearchParams(location.search);
 if (pageParams.has("preview")) document.documentElement.classList.add("preview");

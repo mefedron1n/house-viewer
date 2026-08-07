@@ -1,5 +1,5 @@
 (() => {
-  const API_URL = window.MODEL_API_URL || "http://localhost:3001";
+  const API_URL = window.HouseConfig?.apiBaseUrl || location.origin;
   const roomNames = Object.fromEntries(window.HOUSE_ROOMS.map(({ id, name }) => [id, name]));
   const placeholder = "./images/room-placeholder.svg";
   let roomData = {}, notes = [], activeNoteId = null, projectFloorplanUrl = null;
@@ -20,7 +20,7 @@
 
   document.querySelectorAll(".settings-toggle").forEach((button) => button.addEventListener("click", () => document.getElementById("settings-drawer").classList.toggle("open")));
   const themeButton = document.getElementById("theme-button");
-  function setTheme(dark) { document.documentElement.classList.toggle("dark", dark); themeButton.classList.toggle("active", dark); themeButton.setAttribute("aria-pressed", dark); themeButton.setAttribute("aria-label", dark ? "Включить светлую тему" : "Включить тёмную тему"); themeButton.title = dark ? "Светлая тема" : "Тёмная тема"; document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#111820" : "#F4F6F8"); localStorage.setItem("theme", dark ? "dark" : "light"); window.dispatchEvent(new CustomEvent("theme-changed", { detail:{ dark } })); }
+  function setTheme(dark) { document.documentElement.classList.toggle("dark", dark); themeButton.classList.toggle("active", dark); themeButton.setAttribute("aria-pressed", dark); themeButton.setAttribute("aria-label", dark ? "Включить светлую тему" : "Включить тёмную тему"); themeButton.title = dark ? "Светлая тема" : "Тёмная тема"; document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#20251F" : "#F2EFE7"); localStorage.setItem("theme", dark ? "dark" : "light"); window.dispatchEvent(new CustomEvent("theme-changed", { detail:{ dark } })); }
   setTheme(localStorage.getItem("theme") === "dark" || (!localStorage.getItem("theme") && matchMedia("(prefers-color-scheme:dark)").matches));
   themeButton.onclick = () => setTheme(!document.documentElement.classList.contains("dark"));
   document.addEventListener("keydown", (event) => { if (event.key === "Escape") { document.getElementById("settings-drawer").classList.remove("open"); activeNoteId = null; renderPins(); } });

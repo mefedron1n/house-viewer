@@ -1,5 +1,5 @@
 (() => {
-  const API = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? location.origin : (window.HOUSE_REVIEWER_API || "https://house-viewer-api.onrender.com");
+  const API = window.HouseConfig?.apiBaseUrl || location.origin;
   fetch(`${API}/api/auth/me`, { credentials: "include" }).then(async (response) => {
     if (!response.ok) return;
     const { user } = await response.json();
@@ -7,4 +7,7 @@
     window.createProfileMenu(actions, user, API);
     document.querySelectorAll('a[href="./auth.html?mode=register"]').forEach((link) => { link.href = "./studio.html?view=new"; });
   }).catch(() => {});
+  const menuButton = document.querySelector(".site-menu-toggle"), navigation = document.querySelector("#site-navigation");
+  menuButton?.addEventListener("click", () => { const open = menuButton.getAttribute("aria-expanded") !== "true"; menuButton.setAttribute("aria-expanded", String(open)); navigation.classList.toggle("open", open); });
+  navigation?.addEventListener("click", () => { menuButton.setAttribute("aria-expanded", "false"); navigation.classList.remove("open"); });
 })();

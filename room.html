@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Комната — проект дома</title>
     <link rel="icon" type="image/png" href="./images/icon.png">
+    <link rel="stylesheet" href="./styles/tokens.css?v=2">
+    <script src="./scripts/config.js?v=1"></script>
     <style>
         :root { color-scheme:light; --color-page:#F4F6F8; --color-surface:#FFFFFF; --color-surface-soft:#F8FAFC; --color-surface-muted:#EEF2F5; --color-surface-hover:#F1F5F9; --color-text-primary:#17202A; --color-text-secondary:#566270; --color-text-muted:#84909C; --color-text-inverse:#FFFFFF; --color-border:#DCE2E8; --color-border-soft:#E8EDF1; --color-border-strong:#C5CDD5; --color-primary:#3B6F9E; --color-primary-hover:#315F88; --color-primary-soft:#E7F0F8; --color-primary-border:#BFD3E5; --color-danger:#B64A4A; --color-danger-soft:#FBEAEA; --color-danger-border:#E8BABA; --color-overlay:rgba(23,32,42,.42); --shadow-xs:0 1px 2px rgba(23,32,42,.05); --shadow-sm:0 4px 12px rgba(23,32,42,.07); --shadow-lg:0 20px 50px rgba(23,32,42,.14); --focus-ring:0 0 0 3px rgba(59,111,158,.22); }
         * { box-sizing: border-box; }
@@ -38,6 +40,7 @@
         .modal-caption { padding:15px 62px 16px 18px; color:var(--color-text-inverse); font-weight:600; }.modal-close { position:absolute; top:10px; right:10px; display:grid; width:38px; height:38px; place-items:center; color:var(--color-text-inverse); background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); border-radius:50%; cursor:pointer; font-size:24px; line-height:1; }:focus-visible { outline:none; box-shadow:var(--focus-ring); }
         @media (max-width: 700px) { main { width: min(100% - 24px, 600px); padding: 24px 0 38px; } .back { margin-bottom: 22px; } .intro { margin-bottom: 24px; } .media-grid { grid-template-columns: 1fr; } .render-item { flex-basis: 86%; } .model-placeholder, .model-frame { min-height: 280px; } .upload-form { grid-template-columns: 1fr; } }
     </style>
+    <link rel="stylesheet" href="./styles/spatial.css?v=1">
 </head>
 <body>
     <main>
@@ -88,7 +91,7 @@
         <img class="modal-image" src="" alt="">
         <div class="modal-caption" id="modal-caption"></div>
     </dialog>
-    <script>window.MODEL_API_URL = "https://house-viewer.onrender.com";</script>
+    <script>window.MODEL_API_URL = window.HouseConfig.apiBaseUrl;</script>
     <script>
         const rooms = {
             kitchen: { title: "Кухня-гостиная", description: "Планировка, подборка интерьерных рендеров и будущая 3D-модель кухни-гостиной." },
@@ -99,7 +102,7 @@
         };
         const roomKey = new URLSearchParams(location.search).get("room");
         const currentRoom = rooms[roomKey] || { title: "Комната", description: "Планировка, подборка интерьерных рендеров и будущая 3D-модель помещения." };
-        const API_URL = window.MODEL_API_URL || "http://localhost:3001";
+        const API_URL = window.HouseConfig?.apiBaseUrl || location.origin;
         document.title = `${currentRoom.title} — проект дома`;
         document.getElementById("room-name").textContent = currentRoom.title;
         document.getElementById("room-description").textContent = currentRoom.description;
