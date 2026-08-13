@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 test("room assets and notes are shared, persisted, and removable", async () => {
-  const storage = await fs.mkdtemp(path.join(os.tmpdir(), "house-viewer-test-"));
+  const storage = await fs.mkdtemp(path.join(os.tmpdir(), "roomark-test-"));
   const roomDirectory = path.join(storage, "rooms", "kitchen");
   const renderFilename = "render-0123456789abcdef.png";
   const photoFilename = "photo-fedcba9876543210.jpg";

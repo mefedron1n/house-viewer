@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Комната — проект дома</title>
-    <link rel="icon" type="image/png" href="./images/icon.png">
+    <link rel="icon" type="image/png" href="./images/roomark-logo.png">
     <link rel="stylesheet" href="./styles/tokens.css?v=2">
+    <link rel="stylesheet" href="./styles/navigation.css?v=1">
     <script src="./scripts/config.js?v=1"></script>
     <style>
         :root { color-scheme:light; --color-page:#F4F6F8; --color-surface:#FFFFFF; --color-surface-soft:#F8FAFC; --color-surface-muted:#EEF2F5; --color-surface-hover:#F1F5F9; --color-text-primary:#17202A; --color-text-secondary:#566270; --color-text-muted:#84909C; --color-text-inverse:#FFFFFF; --color-border:#DCE2E8; --color-border-soft:#E8EDF1; --color-border-strong:#C5CDD5; --color-primary:#3B6F9E; --color-primary-hover:#315F88; --color-primary-soft:#E7F0F8; --color-primary-border:#BFD3E5; --color-danger:#B64A4A; --color-danger-soft:#FBEAEA; --color-danger-border:#E8BABA; --color-overlay:rgba(23,32,42,.42); --shadow-xs:0 1px 2px rgba(23,32,42,.05); --shadow-sm:0 4px 12px rgba(23,32,42,.07); --shadow-lg:0 20px 50px rgba(23,32,42,.14); --focus-ring:0 0 0 3px rgba(59,111,158,.22); }
@@ -44,7 +45,7 @@
 </head>
 <body>
     <main>
-        <a class="back" href="./index.html">← Вернуться к комнатам</a>
+        <nav class="room-page-navigation" aria-label="Навигация страницы"><a class="back" href="/viewer.html">← Вернуться к проекту</a><a class="global-home-link" href="/">На главную</a></nav>
         <h1 id="room-name">Комната</h1>
         <p class="intro" id="room-description">Здесь собраны планировка, рендеры и будущая 3D-модель помещения.</p>
 

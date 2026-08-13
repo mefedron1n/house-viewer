@@ -16,7 +16,7 @@ test("registration creates a durable account and cookie session", async () => {
     const registered = await fetch(`${base}/api/auth/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Анна Смирнова", email: "ANNA@example.com", password: "house2026" }) });
     assert.equal(registered.status, 201);
     const cookie = registered.headers.get("set-cookie").split(";")[0];
-    assert.match(cookie, /^hr_session=/);
+    assert.match(cookie, /^roomark_session=/);
     assert.equal((await registered.json()).user.email, "anna@example.com");
     const stored = JSON.parse(await fs.readFile(path.join(storage, "users.json"), "utf8"));
     assert.match(stored[0].passwordHash, /^scrypt:/);
@@ -41,11 +41,11 @@ test("registration creates a durable account and cookie session", async () => {
     const projects = await fetch(`${base}/api/projects`, { headers: { Cookie: cookie } }).then((response) => response.json());
     assert.equal(projects.length, 1);
     assert.equal("ownerId" in projects[0], false);
-    assert.equal((await fetch(`${base}/api/projects/${createdProject.id}`, { headers: { Cookie: "hr_session=invalid" } })).status, 401);
+    assert.equal((await fetch(`${base}/api/projects/${createdProject.id}`, { headers: { Cookie: "roomark_session=invalid" } })).status, 401);
     const expiredToken = "expired-session-token", sessions = JSON.parse(await fs.readFile(path.join(storage, "sessions.json"), "utf8"));
     const { createHash } = await import("node:crypto"); sessions.push({ tokenHash: createHash("sha256").update(expiredToken).digest("hex"), userId: stored[0].id, expiresAt: Date.now() - 1 });
     await fs.writeFile(path.join(storage, "sessions.json"), JSON.stringify(sessions));
-    assert.equal((await fetch(`${base}/api/auth/me`, { headers: { Cookie: `hr_session=${expiredToken}` } })).status, 401);
+    assert.equal((await fetch(`${base}/api/auth/me`, { headers: { Cookie: `roomark_session=${expiredToken}` } })).status, 401);
     assert.equal((await fetch(`${base}/api/projects/${createdProject.id}`, { headers: { Cookie: cookie, Origin: "https://evil.example" } })).status, 403);
     const otherResponse = await fetch(`${base}/api/auth/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Иван Петров", email: "ivan@example.com", password: "house2027" }) });
     const otherCookie = otherResponse.headers.get("set-cookie").split(";")[0];

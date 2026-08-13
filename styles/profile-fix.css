@@ -1,0 +1,9 @@
+.studio-header .profile { gap: 0; }
+.studio-header .profile > .profile-trigger {
+  width: auto;
+  height: auto;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border-radius: 0;
+  font-size: 14px;
+}

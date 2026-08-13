@@ -30,7 +30,7 @@
 
    При Root Directory `server` все пути выше рассчитываются от папки `server`.
 
-3. Нажмите **Create Web Service**. Render соберёт образ из `server/Dockerfile` и выдаст адрес вида `https://house-viewer-ifc-api.onrender.com`.
+3. Нажмите **Create Web Service**. Render соберёт образ из `server/Dockerfile` и выдаст адрес вида `https://roomark-ifc-api.onrender.com`.
 
 ## 3. Добавьте переменные окружения
 
@@ -81,7 +81,7 @@ Mount path: /data
 
 ```html
 <script>
-  window.MODEL_API_URL = "https://house-viewer-ifc-api.onrender.com";
+  window.MODEL_API_URL = "https://roomark-ifc-api.onrender.com";
 </script>
 <script type="module" src="./scripts/app.js"></script>
 ```

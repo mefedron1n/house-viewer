@@ -9,7 +9,7 @@ services:
       TEMP_DIR: /data/tmp
       IFC_CONVERT_PATH: /opt/conda/bin/IfcConvert
     volumes: ["ifc-models:/data/models"]
-    networks: ["house-viewer-net"]
+    networks: ["roomark-net"]
   web:
     image: nginx:1.27-alpine
     ports: ["8080:80"]
@@ -19,12 +19,9 @@ services:
     volumes:
       - ./:/usr/share/nginx/html:ro
       - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    networks: ["house-viewer-net"]
+    networks: ["roomark-net"]
 volumes:
   ifc-models:
 networks:
-  house-viewer-net:
+  roomark-net:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.29.0.0/24

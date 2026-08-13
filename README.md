@@ -1,4 +1,4 @@
-# House Reviewer
+# Roomark
 
 Static architectural project frontend with a Three.js viewer and a Node/Express API for projects, room media, notes and IFC → GLB conversion.
 
@@ -13,12 +13,12 @@ npm ci
 npm start
 ```
 
-In another terminal, serve the repository root. Same-origin API proxying is not provided by Python, so either set `window.HOUSE_REVIEWER_API_URL` before `scripts/config.js` or use Docker (recommended).
+In another terminal, serve the repository root. Same-origin API proxying is not provided by Python, so either set `window.ROOMARK_API_URL` before `scripts/config.js` or use Docker (recommended).
 
 The frontend has one runtime configuration source: `scripts/config.js`. By default it uses `location.origin`. For a separately hosted API, inject this before `config.js`:
 
 ```html
-<script>window.HOUSE_REVIEWER_API_URL = "https://api.your-domain.example";</script>
+<script>window.ROOMARK_API_URL = "https://api.your-domain.example";</script>
 ```
 
 ## Docker

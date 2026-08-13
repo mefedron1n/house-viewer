@@ -1,3 +1,10 @@
+if (!document.querySelector('link[href*="profile-fix.css"]')) {
+  const profileStyles = document.createElement("link");
+  profileStyles.rel = "stylesheet";
+  profileStyles.href = "./styles/profile-fix.css?v=1";
+  document.head.append(profileStyles);
+}
+
 window.createProfileMenu = (container, user, apiBase) => {
   const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
   const firstName = user.name.trim().split(/\s+/)[0];
@@ -9,5 +16,5 @@ window.createProfileMenu = (container, user, apiBase) => {
   trigger.addEventListener("click", (event) => { event.stopPropagation(); const opening = menu.hidden; menu.hidden = !opening; trigger.setAttribute("aria-expanded", String(opening)); });
   document.addEventListener("click", (event) => { if (!container.contains(event.target)) close(); });
   document.addEventListener("keydown", (event) => { if (event.key === "Escape") { close(); trigger.focus(); } });
-  container.querySelector("[data-profile-logout]").addEventListener("click", async () => { try { await fetch(`${apiBase}/api/auth/logout`, { method: "POST", credentials: "include" }); } finally { localStorage.removeItem("houseReviewerUser"); location.href = "./"; } });
+  container.querySelector("[data-profile-logout]").addEventListener("click", async () => { try { await fetch(`${apiBase}/api/auth/logout`, { method: "POST", credentials: "include" }); } finally { localStorage.removeItem("roomarkUser"); localStorage.removeItem("houseReviewerUser"); location.href = "./"; } });
 };

@@ -4,6 +4,26 @@
   const placeholder = "./images/room-placeholder.svg";
   let roomData = {}, notes = [], activeNoteId = null, projectFloorplanUrl = null;
   const absoluteUrl = (url) => url ? `${API_URL}${url}` : null;
+  function roomIconUrl(key) {
+    const value = `${key} ${roomNames[key] || ""}`.toLowerCase();
+    let icon = "living-room";
+    if (/кухня[- ]гостиная|kitchen[- ]living/.test(value)) icon = "kitchen-living";
+    else if (/гостин|living/.test(value)) icon = "living-room";
+    else if (/кух|kitchen/.test(value)) icon = "kitchen";
+    else if (/детск|nursery|child/.test(value)) icon = "nursery";
+    else if (/спаль|bedroom|\bbed\b/.test(value)) icon = "bedroom";
+    else if (/кабин|office|study/.test(value)) icon = "office";
+    else if (/сануз|туал|toilet|\bwc\b/.test(value)) icon = "toilet";
+    else if (/ванн|bathroom|\bbath\b/.test(value)) icon = "bathroom";
+    else if (/прихож|entryway|foyer/.test(value)) icon = "entryway";
+    else if (/корид|холл|hallway|corridor/.test(value)) icon = "hallway";
+    else if (/гардероб|wardrobe|closet/.test(value)) icon = "wardrobe";
+    else if (/кладов|pantry|storage/.test(value)) icon = "pantry";
+    else if (/постир|laundry/.test(value)) icon = "laundry";
+    else if (/балкон|лоджи|balcon|loggia/.test(value)) icon = "balcony";
+    else if (/террас|terrace/.test(value)) icon = "terrace";
+    return `./images/room-icons/${icon}.png`;
+  }
 
   function setMode(mode) {
     document.querySelectorAll("[data-mode]").forEach((button) => button.classList.toggle("active", button.dataset.mode === mode));
@@ -27,7 +47,7 @@
 
   function roomTile(key, room) {
     const image = absoluteUrl(room.floorplanUrl || room.renderUrls?.[0]);
-    return `<button class="room-tile" data-room-focus="${key}" type="button"><span class="room-visual">${image ? `<img src="${image}" alt="Планировка: ${roomNames[key]}">` : `<svg class="icon"><path d="M4 4h16v16H4zM9 4v7h11M9 11v9"/></svg>`}</span><span class="room-copy"><strong>${roomNames[key]}</strong><small>Открыть страницу помещения</small></span></button>`;
+    return `<button class="room-tile" data-room-focus="${key}" type="button"><span class="room-visual">${image ? `<img src="${image}" alt="Планировка: ${roomNames[key]}">` : `<img class="room-type-icon" src="${roomIconUrl(key)}" alt="">`}</span><span class="room-copy"><strong>${roomNames[key]}</strong><small>Открыть страницу помещения</small></span></button>`;
   }
   function renderPlan() {
     document.getElementById("plan-rooms").innerHTML = Object.entries(roomNames).map(([key]) => roomTile(key, roomData[key] || {})).join("");
@@ -37,8 +57,8 @@
   const projectFloorplanInput=document.createElement("input"); projectFloorplanInput.type="file"; projectFloorplanInput.accept="image/jpeg,image/png,image/webp"; projectFloorplanInput.hidden=true; document.body.append(projectFloorplanInput); document.getElementById("project-floorplan-upload").onclick=()=>projectFloorplanInput.click(); projectFloorplanInput.onchange=async()=>{ const file=projectFloorplanInput.files[0], status=document.getElementById("project-floorplan-status"); if(!file)return; const password=prompt("Введите пароль для загрузки общей планировки:")||""; if(!password)return; status.textContent="Загрузка…"; const data=new FormData(); data.append("file",file); try { const response=await fetch(`${API_URL}/api/project/floorplan`,{method:"POST",headers:{"X-Upload-Password":password},body:data}), result=await response.json(); if(!response.ok)throw new Error(result.error||"Не удалось загрузить планировку."); applyProjectFloorplan(result.floorplanUrl); status.textContent="Общая планировка сохранена и установлена фоном для пинов."; }catch(error){status.textContent=error.message;}finally{projectFloorplanInput.value="";} };
   const galleryIndexes = { photos:0, renders:0 };
   function galleryItems(kind) { return Object.entries(roomNames).flatMap(([key,title]) => { const room=roomData[key]||{}; if(kind==="photos") return (room.photos||[]).map((photo,index)=>({ url:absoluteUrl(photo.url), title, caption:`${title} · фото ${index+1}` })); return (room.renderUrls||[]).map((url,index)=>({ url:absoluteUrl(url), title, caption:`${title} · рендер ${index+1}` })); }); }
-  function mediaRoomTile(key, kind) { const room=roomData[key]||{}, photo=room.photos?.[0]?.url, render=room.renderUrls?.[0], image=absoluteUrl(kind==="photos" ? photo : render); return `<button class="room-tile" data-room-focus="${key}" data-room-tab-target="${kind}" type="button"><span class="room-visual">${image ? `<img src="${image}" alt="${kind==="photos" ? "Фото" : "Рендер"}: ${roomNames[key]}">` : `<svg class="icon"><path d="M4 4h16v16H4zM9 4v7h11M9 11v9"/></svg>`}</span><span class="room-copy"><strong>${roomNames[key]}</strong><small>Открыть ${kind==="photos" ? "фотографии" : "рендеры"} комнаты</small></span></button>`; }
-  function galleryMarkup(kind) { const items=galleryItems(kind), index=items.length ? galleryIndexes[kind]%items.length : 0, item=items[index]; if(!item) return `<div class="empty-state">Материалы ещё не загружены. Добавить их можно на странице соответствующей комнаты.</div><h3 class="gallery-room-title">Выбрать комнату</h3><div class="room-grid">${Object.keys(roomNames).map((key)=>mediaRoomTile(key,kind)).join("")}</div>`; return `<section class="media-showcase" data-gallery-kind="${kind}"><div class="media-stage"><button class="media-arrow previous" type="button" data-gallery-step="-1" aria-label="Предыдущее изображение">‹</button><button class="media-main" type="button" data-image="${item.url}" data-caption="${item.caption}"><img src="${item.url}" alt="${item.caption}"><span>${item.caption}</span></button><button class="media-arrow next" type="button" data-gallery-step="1" aria-label="Следующее изображение">›</button></div><div class="media-counter">${index+1} / ${items.length}</div><div class="media-thumbnails">${items.map((entry,itemIndex)=>`<button class="media-thumbnail ${itemIndex===index?"active":""}" type="button" data-gallery-index="${itemIndex}" aria-label="${entry.caption}"><img src="${entry.url}" alt="" loading="lazy"></button>`).join("")}</div></section><h3 class="gallery-room-title">Выбрать комнату</h3><div class="room-grid">${Object.keys(roomNames).map((key)=>mediaRoomTile(key,kind)).join("")}</div>`; }
+  function mediaRoomTile(key, kind) { const room=roomData[key]||{}, photo=room.photos?.[0]?.url, render=room.renderUrls?.[0], image=absoluteUrl(kind==="photos" ? photo : render); return `<button class="room-tile" data-room-focus="${key}" data-room-tab-target="${kind}" type="button"><span class="room-visual">${image ? `<img src="${image}" alt="${kind==="photos" ? "Фото" : "Рендер"}: ${roomNames[key]}">` : `<img class="room-type-icon" src="${roomIconUrl(key)}" alt="">`}</span><span class="room-copy"><strong>${roomNames[key]}</strong><small>Открыть ${kind==="photos" ? "фотографии" : "рендеры"} комнаты</small></span></button>`; }
+  function galleryMarkup(kind) { const items=galleryItems(kind), index=items.length ? galleryIndexes[kind]%items.length : 0, item=items[index]; if(!item) { const empty = kind === "renders" ? `<div class="workspace-empty"><span class="workspace-empty-icon" aria-hidden="true">◇</span><h3>Рендеры проекта</h3><p>Здесь появятся визуализации помещений. Выберите комнату ниже, чтобы добавить первый рендер.</p></div>` : `<div class="empty-state">Материалы ещё не загружены. Добавить их можно на странице соответствующей комнаты.</div>`; return `${empty}<h3 class="gallery-room-title">Выбрать комнату</h3><div class="room-grid">${Object.keys(roomNames).map((key)=>mediaRoomTile(key,kind)).join("")}</div>`; } return `<section class="media-showcase" data-gallery-kind="${kind}"><div class="media-stage"><button class="media-arrow previous" type="button" data-gallery-step="-1" aria-label="Предыдущее изображение">‹</button><button class="media-main" type="button" data-image="${item.url}" data-caption="${item.caption}"><img src="${item.url}" alt="${item.caption}"><span>${item.caption}</span></button><button class="media-arrow next" type="button" data-gallery-step="1" aria-label="Следующее изображение">›</button></div><div class="media-counter">${index+1} / ${items.length}</div><div class="media-thumbnails">${items.map((entry,itemIndex)=>`<button class="media-thumbnail ${itemIndex===index?"active":""}" type="button" data-gallery-index="${itemIndex}" aria-label="${entry.caption}"><img src="${entry.url}" alt="" loading="lazy"></button>`).join("")}</div></section><h3 class="gallery-room-title">Выбрать комнату</h3><div class="room-grid">${Object.keys(roomNames).map((key)=>mediaRoomTile(key,kind)).join("")}</div>`; }
   function renderGalleries() {
     document.getElementById("photos-content").innerHTML = galleryMarkup("photos");
     document.getElementById("renders-content").innerHTML = galleryMarkup("renders");
@@ -83,10 +103,10 @@
   }
   function renderPins() {
     const board = document.getElementById("pin-board");
-    board.innerHTML = notes.map((note, index) => {
+    board.innerHTML = notes.length ? notes.map((note, index) => {
       const position = pinPosition(note);
       return `<button class="note-pin ${activeNoteId === note.id ? "active" : ""}" type="button" data-note-id="${note.id}" style="left:${position.left}%;top:${position.top}%" aria-label="Открыть замечание ${index + 1}"><span>${index + 1}</span></button>`;
-    }).join("");
+    }).join("") : `<div class="workspace-empty"><span class="workspace-empty-icon" aria-hidden="true">⌖</span><h3>План проекта</h3><p>Здесь будут отображаться ваши замечания.<br>Добавьте первый пин на плане.</p></div>`;
     const note = notes.find(({ id }) => id === activeNoteId);
     if (!note) return;
     const position = pinPosition(note), popover = document.createElement("article");

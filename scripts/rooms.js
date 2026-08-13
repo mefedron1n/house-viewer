@@ -1,30 +1,57 @@
 (() => {
   document.querySelectorAll("svg.icon").forEach((icon) => { icon.setAttribute("viewBox", "0 0 24 24"); icon.setAttribute("aria-hidden", "true"); });
   if (new URLSearchParams(location.search).has("preview")) return;
-  const API_URL = window.HouseConfig?.apiBaseUrl || location.origin; let rooms = window.HOUSE_ROOMS, roomBySlug = {}, roomById = {};
+  const API_URL = window.HouseConfig?.apiBaseUrl || location.origin; let rooms = window.AUTO_ROOMS?.length ? window.AUTO_ROOMS : window.HOUSE_ROOMS, roomBySlug = {}, roomById = {};
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[character]);
   const indexRooms = () => { roomBySlug = Object.fromEntries(rooms.map((room) => [room.slug, room])); roomById = Object.fromEntries(rooms.map((room) => [room.id, room])); }; indexRooms();
   const page = document.getElementById("room-page"), content = document.getElementById("room-content"), sidebar = document.getElementById("rooms-sidebar");
   let manifests = {}, notes = [], selectedRoom = null, selectedTab = "overview", photoFilter = "all", selectedFiles = [];
   const absolute = (url) => url ? `${API_URL}${url}` : "./images/room-placeholder.svg";
   const typeLabels = { construction:"Ход строительства", completed:"Готовая работа", defect:"Замечание", control:"Контрольный снимок", other:"Другое" };
-  const currentRoute = () => new URLSearchParams(location.search).get("route") || (window.top.location.pathname.startsWith("/rooms/") ? window.top.location.pathname : "");
-  const navigate = (path, replace = false) => { const history = window.top.history; history[replace ? "replaceState" : "pushState"]({}, "", path); if (path.startsWith("/rooms/")) openRoom(roomBySlug[path.split("/")[2]], false); else closeRoom(false); };
+  const currentRoute = () => new URLSearchParams(window.top.location.search).get("route") || (window.top.location.pathname.startsWith("/rooms/") ? window.top.location.pathname : "");
+  const browserUrl = (route = "") => { const url = new URL(window.top.location.href); url.pathname = "/viewer.html"; if (route) url.searchParams.set("route", route); else url.searchParams.delete("route"); return `${url.pathname}${url.search}${url.hash}`; };
+  const navigate = (path, replace = false) => { const history = window.top.history; history[replace ? "replaceState" : "pushState"]({}, "", browserUrl(path.startsWith("/rooms/") ? path : "")); if (path.startsWith("/rooms/")) openRoom(roomBySlug[path.split("/")[2]], false); else closeRoom(false); };
 
   async function loadData() {
-    try { const catalogResponse = await fetch(`${API_URL}/api/rooms`, { cache:"no-store" }); if (catalogResponse.ok) { rooms = await catalogResponse.json(); indexRooms(); window.HOUSE_ROOMS = rooms; const routeSlug = currentRoute().split("/")[2]; if (!selectedRoom && routeSlug && roomBySlug[routeSlug]) openRoom(roomBySlug[routeSlug], false); } } catch { /* Используем встроенный список, если API временно недоступен. */ }
+    try { const catalogResponse = await fetch(`${API_URL}/api/rooms`, { cache:"no-store" }); if (catalogResponse.ok && !window.AUTO_ROOMS?.length) { rooms = await catalogResponse.json(); indexRooms(); window.HOUSE_ROOMS = rooms; const routeSlug = currentRoute().split("/")[2]; if (!selectedRoom && routeSlug && roomBySlug[routeSlug]) openRoom(roomBySlug[routeSlug], false); } } catch { /* Используем встроенный список, если API временно недоступен. */ }
     const results = await Promise.all(rooms.map(async (room) => { try { const response = await fetch(`${API_URL}/api/rooms/${room.id}`, { cache:"no-store" }); return [room.id, response.ok ? await response.json() : {}]; } catch { return [room.id, {}]; } }));
     manifests = Object.fromEntries(results);
     try { const response = await fetch(`${API_URL}/api/notes`, { cache:"no-store" }); notes = response.ok ? await response.json() : []; } catch { notes = []; }
     renderSidebar(); if (selectedRoom) renderRoom();
   }
   function roomCounts(room) { const data = manifests[room.id] || {}, roomNotes = notes.filter((note) => note.roomId === room.id); return { photos:(data.photos || []).length, notes:roomNotes.length }; }
-  function roomIcon(room) { if (room.icon) return room.icon; const value = `${room.id} ${room.name}`.toLowerCase(); if (/kitchen|кух/.test(value)) return "🍳"; if (/bed|спаль|детск/.test(value)) return "🛏️"; if (/bath|сануз|ванн|туал/.test(value)) return "🚿"; if (/hall|прихож|корид/.test(value)) return "🚪"; if (/balcon|terrace|балкон|террас/.test(value)) return "🌿"; if (/living|гостин/.test(value)) return "🛋️"; if (/office|кабин/.test(value)) return "💻"; return "🏠"; }
-  function renderSidebar() {
-    document.getElementById("room-links").innerHTML = `<button class="room-link ${selectedRoom ? "" : "active"}" data-go-home><span class="room-link-icon">🏢</span><span class="room-link-copy"><strong>Все помещения</strong><small>Общая 3D-модель</small></span></button>${rooms.map((room) => { const count = roomCounts(room); return `<button class="room-link ${selectedRoom?.id === room.id ? "active" : ""}" data-open-room="${esc(room.slug)}"><span class="room-link-icon">${roomIcon(room)}</span><span class="room-link-copy"><strong>${esc(room.name)}</strong><small>${count.photos} фото · ${count.notes} замечаний →</small></span></button>`; }).join("")}`;
+  const roomIconOptions = [
+    ["living-room", "Гостиная"], ["kitchen", "Кухня"], ["kitchen-living", "Кухня-гостиная"], ["bedroom", "Спальня"], ["nursery", "Детская"],
+    ["office", "Кабинет"], ["bathroom", "Ванная"], ["toilet", "Санузел"], ["entryway", "Прихожая"], ["hallway", "Коридор / холл"],
+    ["wardrobe", "Гардеробная"], ["pantry", "Кладовая"], ["laundry", "Постирочная"], ["balcony", "Балкон / лоджия"], ["terrace", "Терраса"]
+  ];
+  const roomIconIds = new Set(roomIconOptions.map(([id]) => id));
+  function roomIcon(room) {
+    if (roomIconIds.has(room.icon)) return room.icon;
+    const value = `${room.id} ${room.slug || ""} ${room.name}`.toLowerCase();
+    if (/кухня[- ]гостиная|kitchen[- ]living/.test(value)) return "kitchen-living";
+    if (/гостин|living/.test(value)) return "living-room";
+    if (/кух|kitchen/.test(value)) return "kitchen";
+    if (/детск|nursery|child/.test(value)) return "nursery";
+    if (/спаль|bedroom|\bbed\b/.test(value)) return "bedroom";
+    if (/кабин|office|study/.test(value)) return "office";
+    if (/сануз|туал|toilet|\bwc\b/.test(value)) return "toilet";
+    if (/ванн|bathroom|\bbath\b/.test(value)) return "bathroom";
+    if (/прихож|entryway|foyer/.test(value)) return "entryway";
+    if (/корид|холл|hallway|corridor/.test(value)) return "hallway";
+    if (/гардероб|wardrobe|closet/.test(value)) return "wardrobe";
+    if (/кладов|pantry|storage/.test(value)) return "pantry";
+    if (/постир|laundry/.test(value)) return "laundry";
+    if (/балкон|лоджи|balcon|loggia/.test(value)) return "balcony";
+    if (/террас|terrace/.test(value)) return "terrace";
+    return "living-room";
   }
-  function openRoom(room, updateUrl = true) { if (!room) return navigate("/", true); selectedRoom = room; window.NOTE_ROOM_ID = room.id; selectedTab = "overview"; window.setViewerActive?.(false); page.classList.add("active"); sidebar.classList.remove("open"); document.querySelector(".project-card").hidden = true; document.querySelector(".tools").hidden = true; if (updateUrl) window.top.history.pushState({}, "", `/rooms/${room.slug}`); renderSidebar(); renderRoom(); }
-  function closeRoom(updateUrl = true, preserveNoteRoom = false) { selectedRoom = null; if (!preserveNoteRoom) window.NOTE_ROOM_ID = null; page.classList.remove("active"); window.setViewerActive?.(true); document.querySelector(".project-card").hidden = false; document.querySelector(".tools").hidden = false; if (updateUrl) window.top.history.pushState({}, "", "/"); renderSidebar(); }
+  const roomIconMarkup = (id, label = "") => `<img src="./images/room-icons/${id}.png" alt="" title="${esc(label)}" loading="lazy">`;
+  function renderSidebar() {
+    document.getElementById("room-links").innerHTML = `<button class="room-link ${selectedRoom ? "" : "active"}" data-go-home><span class="room-link-icon">${roomIconMarkup("living-room", "Все помещения")}</span><span class="room-link-copy"><strong>Все помещения</strong><small>Общая 3D-модель</small></span></button>${rooms.map((room) => { const count = roomCounts(room), icon = roomIcon(room); return `<button class="room-link ${selectedRoom?.id === room.id ? "active" : ""}" data-open-room="${esc(room.slug)}"><span class="room-link-icon">${roomIconMarkup(icon, room.name)}</span><span class="room-link-copy"><strong>${esc(room.name)}</strong><small>${count.photos} фото · ${count.notes} замечаний →</small></span></button>`; }).join("")}`;
+  }
+  function openRoom(room, updateUrl = true) { if (!room) return navigate("/", true); selectedRoom = room; window.NOTE_ROOM_ID = room.id; selectedTab = "overview"; window.showRoom?.(room.id); window.focusRoom?.(room.id); sidebar.classList.remove("open"); if (room.automatic) { window.setViewerActive?.(true); page.classList.remove("active"); document.querySelector(".project-card").hidden = true; document.querySelector(".tools").hidden = false; renderSidebar(); return; } window.setViewerActive?.(false); page.classList.add("active"); document.querySelector(".project-card").hidden = true; document.querySelector(".tools").hidden = true; if (updateUrl) window.top.history.pushState({}, "", browserUrl(`/rooms/${room.slug}`)); renderSidebar(); renderRoom(); }
+  function closeRoom(updateUrl = true, preserveNoteRoom = false) { selectedRoom = null; window.showAllRooms?.(); if (!preserveNoteRoom) window.NOTE_ROOM_ID = null; page.classList.remove("active"); window.setViewerActive?.(true); document.querySelector(".project-card").hidden = false; document.querySelector(".tools").hidden = false; if (updateUrl) window.top.history.pushState({}, "", browserUrl()); renderSidebar(); }
   window.openHouseRoom = (roomId, tab) => { openRoom(roomById[roomId]); if (tab && ["photos","renders"].includes(tab)) { selectedTab=tab; renderRoom(); } };
   function updatedAt(data) { const values = [...(data.photos || []).map((photo) => photo.createdAt)]; return values.sort().at(-1) || null; }
   function renderRoom() {
@@ -62,10 +89,20 @@
   document.addEventListener("pointercancel", () => { pointerPressed = false; }, true);
   window.addEventListener("blur", () => { pointerPressed = false; });
   document.getElementById("rooms-mobile-button").onclick = () => sidebar.classList.toggle("open"); document.getElementById("rooms-collapse").onclick = () => sidebar.classList.toggle("collapsed");
-  const addRoomModal = document.getElementById("add-room-modal"), addRoomForm = document.getElementById("add-room-form"), roomIcons = ["🏠","🛋️","🛏️","🍳","🚿","🚪","💻","🌿"];
-  document.getElementById("new-room-icons").innerHTML = roomIcons.map((icon,index) => `<button class="icon-choice ${index === 0 ? "selected" : ""}" type="button" role="radio" aria-checked="${index === 0}" data-room-icon="${icon}">${icon}</button>`).join("");
-  document.getElementById("new-room-icons").onclick = (event) => { const choice = event.target.closest("[data-room-icon]"); if (!choice) return; document.getElementById("new-room-icon").value = choice.dataset.roomIcon; document.querySelectorAll("[data-room-icon]").forEach((button) => { const selected = button === choice; button.classList.toggle("selected", selected); button.setAttribute("aria-checked", selected); }); };
-  document.getElementById("add-room-button").onclick = () => { addRoomForm.reset(); document.getElementById("new-room-icon").value = "🏠"; document.getElementById("add-room-state").textContent = ""; document.querySelectorAll("[data-room-icon]").forEach((button,index) => { button.classList.toggle("selected", index === 0); button.setAttribute("aria-checked", index === 0); }); addRoomModal.showModal(); document.getElementById("new-room-name").focus(); };
+  const addRoomModal = document.getElementById("add-room-modal"), addRoomForm = document.getElementById("add-room-form");
+  const roomIconPicker = document.getElementById("new-room-icons");
+  roomIconPicker.insertAdjacentHTML("beforebegin", `<label class="room-icon-search"><span>Поиск типа комнаты</span><input id="room-icon-search" type="search" autocomplete="off" placeholder="Например, кухня или спальня"></label>`);
+  roomIconPicker.insertAdjacentHTML("afterend", `<p class="room-icon-empty" id="room-icon-empty" hidden>Подходящих иконок не найдено.</p>`);
+  roomIconPicker.innerHTML = roomIconOptions.map(([icon,label],index) => `<button class="icon-choice ${index === 0 ? "selected" : ""}" type="button" role="radio" aria-label="${label}" aria-checked="${index === 0}" data-room-icon="${icon}" data-room-label="${label.toLowerCase()}">${roomIconMarkup(icon, label)}<span>${label}</span></button>`).join("");
+  const roomIconSearch = document.getElementById("room-icon-search"), roomNameInput = document.getElementById("new-room-name");
+  document.getElementById("new-room-icon").value = "living-room";
+  roomIconSearch.oninput = () => {
+    const query = roomIconSearch.value.trim().toLocaleLowerCase("ru"); let visible = 0;
+    roomIconPicker.querySelectorAll("[data-room-icon]").forEach((button) => { const show = !query || button.dataset.roomLabel.includes(query); button.hidden = !show; if (show) visible++; });
+    document.getElementById("room-icon-empty").hidden = visible > 0;
+  };
+  roomIconPicker.onclick = (event) => { const choice = event.target.closest("[data-room-icon]"); if (!choice) return; document.getElementById("new-room-icon").value = choice.dataset.roomIcon; roomNameInput.value = choice.getAttribute("aria-label"); document.querySelectorAll("[data-room-icon]").forEach((button) => { const selected = button === choice; button.classList.toggle("selected", selected); button.setAttribute("aria-checked", selected); }); };
+  document.getElementById("add-room-button").onclick = () => { addRoomForm.reset(); roomIconSearch.value = ""; roomIconSearch.oninput(); document.getElementById("new-room-icon").value = "living-room"; document.getElementById("add-room-state").textContent = ""; document.querySelectorAll("[data-room-icon]").forEach((button,index) => { button.classList.toggle("selected", index === 0); button.setAttribute("aria-checked", index === 0); }); addRoomModal.showModal(); roomIconSearch.focus(); };
   document.getElementById("add-room-cancel").onclick = () => addRoomModal.close();
   addRoomForm.onsubmit = async (event) => { event.preventDefault(); const name = document.getElementById("new-room-name").value.trim(), area = Number(document.getElementById("new-room-area").value), icon = document.getElementById("new-room-icon").value, password = document.getElementById("new-room-password").value, state = document.getElementById("add-room-state"), submit = document.getElementById("add-room-submit"); if (!name || !Number.isFinite(area) || area < 0) return state.textContent = "Укажите название и корректную площадь."; submit.disabled = true; state.textContent = "Добавляем помещение…"; try { const response = await fetch(`${API_URL}/api/rooms`, { method:"POST", headers:{ "Content-Type":"application/json", "X-Upload-Password":password }, body:JSON.stringify({ name, area, icon }) }); const room = await response.json(); if (!response.ok) throw new Error(room.error || "Не удалось добавить помещение."); rooms.push(room); indexRooms(); manifests[room.id] = { photos:[], renderUrls:[] }; addRoomModal.close(); renderSidebar(); openRoom(room); } catch (error) { state.textContent = error.message || "Потеря соединения."; } finally { submit.disabled = false; } };
 
@@ -85,6 +122,7 @@
   roomModelInput.onchange = async () => { const file = roomModelInput.files[0]; if (!file) return; if (!file.name.toLowerCase().endsWith(".glb")) { alert("Для комнаты нужен файл GLB."); roomModelInput.value = ""; return; } const password = prompt("Введите пароль для загрузки 3D-модели комнаты:") || ""; if (!password) { roomModelInput.value = ""; return; } try { const data = new FormData(); data.append("file",file); const response = await fetch(`${API_URL}/api/rooms/${selectedRoom.id}/assets/model`,{method:"POST",headers:{"X-Upload-Password":password},body:data}); const result = await response.json(); if (!response.ok) throw new Error(result.error || "Не удалось загрузить модель."); manifests[selectedRoom.id] = result; renderRoom(); showToast("3D-модель комнаты загружена"); } catch(error) { alert(error.message || "Потеря соединения."); } finally { roomModelInput.value = ""; } };
   document.getElementById("photo-upload-form").onsubmit = async (event) => { event.preventDefault(); const state = document.getElementById("photo-upload-state"), submit = document.getElementById("photo-upload-submit"); if (!selectedFiles.length) return state.textContent = "Выберите хотя бы одно фото."; const password = prompt("Введите пароль для загрузки фотографий:") || ""; if (!password) return state.textContent = "Загрузка отменена: пароль не введён."; submit.disabled = true; try { for (let index=0; index<selectedFiles.length; index++) { const data = new FormData(); data.append("file",selectedFiles[index]); data.append("type",document.getElementById("photo-type").value); data.append("date",document.getElementById("photo-date").value); data.append("comment",document.getElementById("photo-comment").value); manifests[selectedRoom.id] = await uploadPhoto(data, password, index, selectedFiles.length); } modal.close(); renderSidebar(); renderRoom(); showToast(`Загружено фото: ${selectedFiles.length}`); } catch(error) { state.textContent = error.message === "Неверный пароль для загрузки." ? "Неверный пароль." : error.message || "Потеря соединения."; } finally { submit.disabled=false; } };
   function showToast(text) { const toast=document.createElement("div"); toast.textContent=text; Object.assign(toast.style,{position:"fixed",zIndex:200,right:"20px",bottom:"20px",padding:"12px 16px",color:"var(--color-success)",background:"var(--color-success-soft)",border:"1px solid var(--color-success-border)",borderRadius:"12px",boxShadow:"var(--shadow-sm)"}); document.body.append(toast); setTimeout(()=>toast.remove(),2800); }
-  try { window.top.addEventListener("popstate",()=>{ const path=window.top.location.pathname; if(path.startsWith("/rooms/")) openRoom(roomBySlug[path.split("/")[2]],false); else closeRoom(false); }); } catch {}
+  try { window.top.addEventListener("popstate",()=>{ const route=currentRoute(); if(route.startsWith("/rooms/")) openRoom(roomBySlug[route.split("/")[2]],false); else closeRoom(false); }); } catch {}
+  window.addEventListener("rooms-analyzed", (event) => { rooms = event.detail.rooms.map((room) => ({ id:room.id, slug:room.id, name:room.name, area:Number(room.area.toFixed(1)), type:room.type, confidence:room.confidence, automatic:true })); window.HOUSE_ROOMS=rooms; indexRooms(); renderSidebar(); window.dispatchEvent(new CustomEvent("room-catalog-changed", { detail:{ rooms } })); });
   const route = currentRoute(); if (route.startsWith("/rooms/")) selectedRoom = roomBySlug[route.split("/")[2]] || null; if (selectedRoom) openRoom(selectedRoom,false); loadData();
 })();
