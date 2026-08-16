@@ -7,3 +7,10 @@
 .room-visual .room-type-icon{width:100%;height:100%;object-fit:contain;padding:12%}
 #loading-screen.has-error .viewer-error-actions{display:flex}html.dark .global-home-link{color:var(--text-inverse-secondary);border-color:var(--border-inverse)}html.dark .global-home-link:hover{color:var(--text-inverse);background:rgba(239,163,33,.10)}
 @media(max-width:760px){.global-home-link{min-height:36px;padding:0 10px;font-size:0}.global-home-link::before{font-size:16px}.auth-brand::after{content:"←";margin-left:10px;font-size:15px}.viewer-error-actions{width:min(320px,calc(100% - 32px));flex-direction:column}.viewer-error-actions a{width:100%;justify-content:center}}
+
+/* One physical header rhythm across marketing, studio, project and spatial contexts. */
+:root{--app-header-height:68px;--app-header-height-mobile:56px;--app-header-padding-x:clamp(24px,3vw,48px)}
+.site-header,.studio-header,.account-topbar{height:var(--app-header-height);padding-inline:var(--app-header-padding-x)}
+.site-header .wordmark img,.studio-header .wordmark img,.account-brand img{width:32px;height:32px;border-radius:8px}
+.studio-header{display:grid;grid-template-columns:minmax(220px,1fr) auto minmax(220px,1fr);gap:24px}.studio-header nav{justify-self:center}.studio-header .profile,.studio-header>.global-home-link{justify-self:end}
+@media(max-width:760px){.site-header,.studio-header,.account-topbar{height:var(--app-header-height-mobile);padding-inline:14px}.studio-header{display:flex}.site-header .wordmark img,.studio-header .wordmark img,.account-brand img{width:30px;height:30px}}

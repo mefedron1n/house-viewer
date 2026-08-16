@@ -56,6 +56,7 @@ export const config = Object.freeze({
   tempTtlMs: integer("TEMP_FILE_TTL_HOURS", 24, { min: 1, max: 168 }) * 3600_000,
   sessionMaxAgeMs: integer("SESSION_MAX_AGE_HOURS", 720, { min: 1, max: 8760 }) * 3600_000,
   shutdownTimeoutMs: integer("SHUTDOWN_TIMEOUT_MS", 15000, { min: 1000, max: 120000 }),
+  apiRate: { windowMs: integer("API_RATE_LIMIT_WINDOW_MS", 900000, { min: 1000 }), max: integer("API_RATE_LIMIT_MAX", 300, { min: 1 }) },
   loginRate: { windowMs: integer("LOGIN_RATE_LIMIT_WINDOW_MS", 900000, { min: 1000 }), max: integer("LOGIN_RATE_LIMIT_MAX", 10, { min: 1 }) },
   registerRate: { windowMs: integer("REGISTER_RATE_LIMIT_WINDOW_MS", 3600000, { min: 1000 }), max: integer("REGISTER_RATE_LIMIT_MAX", 5, { min: 1 }) },
   conversionRate: { windowMs: integer("CONVERSION_RATE_LIMIT_WINDOW_MS", 3600000, { min: 1000 }), max: integer("CONVERSION_RATE_LIMIT_MAX", 5, { min: 1 }) }

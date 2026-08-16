@@ -6,6 +6,7 @@ import express from "express";
 import cors from "cors";
 import multer from "multer";
 import helmet from "helmet";
+import { rateLimit } from "express-rate-limit";
 import { promisify } from "node:util";
 import { ConversionQueue } from "./conversion-queue.js";
 import { createStorage } from "./storage/index.js";
@@ -107,14 +108,12 @@ app.use(cors({ origin(origin, callback) { if (!origin || allowedOrigins.has(orig
 app.use(express.json({ limit: config.jsonLimit }));
 app.use(express.urlencoded({ extended: false, limit: config.jsonLimit }));
 app.use((req, res, next) => { if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method) || !req.headers.cookie) return next(); const origin = req.get("origin"); if ((origin && allowedOrigins.has(origin)) || (!origin && !isProduction)) return next(); res.status(403).json({ error: "Запрос отклонён проверкой источника.", code: "CSRF_ORIGIN_DENIED", requestId: req.id }); });
-export function rateLimit({ windowMs, max, key = (req) => req.ip || req.socket.remoteAddress || "unknown", message = "Слишком много запросов. Попробуйте позже." }) {
-  const clients = new Map();
-  const cleanup = setInterval(() => { const now = Date.now(); for (const [key, value] of clients) if (value.resetAt <= now) clients.delete(key); }, Math.max(windowMs, 60_000)); cleanup.unref();
-  return (req, res, next) => { const clientKey = key(req), now = Date.now(), current = clients.get(clientKey); if (!current || current.resetAt <= now) { clients.set(clientKey, { count: 1, resetAt: now + windowMs }); return next(); } current.count++; res.set("RateLimit-Limit", String(max)); res.set("RateLimit-Remaining", String(Math.max(0, max - current.count))); res.set("RateLimit-Reset", String(Math.ceil(current.resetAt / 1000))); if (current.count > max) return res.status(429).json({ error: message, code: "RATE_LIMITED", requestId: req.id }); next(); };
-}
-const conversionRateLimit = rateLimit({ ...config.conversionRate, message: "Слишком много конвертаций. Попробуйте позже." });
-const loginRateLimit = rateLimit({ ...config.loginRate, message: "Слишком много попыток входа. Попробуйте позже." });
-const registerRateLimit = rateLimit({ ...config.registerRate, message: "Слишком много регистраций. Попробуйте позже." });
+const limiter = (options) => rateLimit({ standardHeaders: "draft-8", legacyHeaders: false, handler: (req, res) => res.status(429).json({ error: options.message, code: "RATE_LIMITED", requestId: req.id }), ...options });
+const apiRateLimit = limiter({ ...config.apiRate, message: "Слишком много API-запросов. Попробуйте позже." });
+const conversionRateLimit = limiter({ ...config.conversionRate, message: "Слишком много конвертаций. Попробуйте позже." });
+const loginRateLimit = limiter({ ...config.loginRate, message: "Слишком много попыток входа. Попробуйте позже." });
+const registerRateLimit = limiter({ ...config.registerRate, message: "Слишком много регистраций. Попробуйте позже." });
+app.use("/api", apiRateLimit);
 
 const scrypt = promisify(crypto.scrypt);
 const sessionMaxAge = config.sessionMaxAgeMs;
@@ -122,6 +121,8 @@ const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
 const validEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) && value.length <= 254;
 const publicUser = ({ id, name, email, createdAt }) => ({ id, name, email, createdAt });
 const publicProject = ({ ownerId: _, ...project }) => project;
+const safeProjectId = (value) => /^[a-f0-9]{24}$/.test(value || "") ? value : null;
+const safeUserId = (value) => /^[a-f0-9]{32}$/.test(value || "") ? value : null;
 async function readJsonArray(file) { try { const value = JSON.parse(await fs.readFile(file, "utf8")); return Array.isArray(value) ? value : []; } catch (error) { if (error.code === "ENOENT" || error instanceof SyntaxError) return []; throw error; } }
 async function writeJsonArray(file, value) { await fs.mkdir(root, { recursive: true }); const temporary = `${file}.${crypto.randomBytes(6).toString("hex")}.tmp`; await fs.writeFile(temporary, JSON.stringify(value, null, 2), { mode: 0o600 }); await fs.rename(temporary, file); }
 let authWrite = Promise.resolve();
@@ -151,6 +152,41 @@ app.get("/api/projects", requireUser, async (req, res, next) => { try { res.set(
 app.post("/api/projects", requireUser, async (req, res, next) => { try { const fields = cleanProjectFields(req.body); if (fields.name.length < 2) return res.status(400).json({ error: "Название проекта должно содержать не менее 2 символов." }); const project = { id: crypto.randomBytes(12).toString("hex"), ownerId: req.user.id, ...fields, status: "Черновик", modelUrl: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; await updateUserProjects((projects) => [...projects, project]); res.status(201).json(publicProject(project)); } catch (error) { next(error); } });
 app.get("/api/projects/:id", requireUser, async (req, res, next) => { try { const project = (await readJsonArray(userProjectsFile)).find((item) => item.id === req.params.id && item.ownerId === req.user.id); if (!project) return res.status(404).json({ error: "Проект не найден." }); res.set("Cache-Control", "no-store").json(publicProject(project)); } catch (error) { next(error); } });
 app.patch("/api/projects/:id", requireUser, async (req, res, next) => { try { const fields = cleanProjectFields(req.body); if (fields.name.length < 2) return res.status(400).json({ error: "Название проекта должно содержать не менее 2 символов." }); let updated; await updateUserProjects((projects) => projects.map((project) => project.id === req.params.id && project.ownerId === req.user.id ? (updated = { ...project, ...fields, updatedAt: new Date().toISOString() }) : project)); if (!updated) return res.status(404).json({ error: "Проект не найден." }); res.json(publicProject(updated)); } catch (error) { next(error); } });
+app.delete("/api/projects/:id", requireUser, async (req, res, next) => {
+  try {
+    const projectId = safeProjectId(req.params.id), userId = safeUserId(req.user.id);
+    if (!projectId || !userId) return res.status(404).json({ error: "Проект не найден." });
+    let removed = false;
+    await updateUserProjects((projects) => projects.filter((project) => { if (project.id === projectId && project.ownerId === userId) { removed = true; return false; } return true; }));
+    if (!removed) return res.status(404).json({ error: "Проект не найден." });
+    await storage.delete(`user-projects/${userId}/${projectId}`, { recursive: true }).catch(() => {});
+    res.status(204).end();
+  } catch (error) { next(error); }
+});
+app.post("/api/account/import", requireUser, async (req, res, next) => {
+  try {
+    const source = req.body;
+    if (!source || !Array.isArray(source.projects) || source.projects.length > 100) return res.status(400).json({ error: "Выберите экспорт Roomark, содержащий не более 100 проектов." });
+    const imported = source.projects.map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const fields = cleanProjectFields(item), sourceId = safeProjectId(item.id);
+      return fields.name.length >= 2 ? { sourceId, fields } : null;
+    });
+    if (imported.some((item) => !item)) return res.status(400).json({ error: "Файл содержит некорректные данные проектов." });
+    const now = new Date().toISOString(); let added = 0, updated = 0;
+    await updateUserProjects((projects) => {
+      const result = [...projects];
+      for (const item of imported) {
+        const index = item.sourceId ? result.findIndex((project) => project.id === item.sourceId && project.ownerId === req.user.id) : -1;
+        if (index >= 0) { result[index] = { ...result[index], ...item.fields, updatedAt: now }; updated++; continue; }
+        const id = item.sourceId && !result.some((project) => project.id === item.sourceId) ? item.sourceId : crypto.randomBytes(12).toString("hex");
+        result.push({ id, ownerId: req.user.id, ...item.fields, status: "Импортирован", modelUrl: null, createdAt: now, updatedAt: now }); added++;
+      }
+      return result;
+    });
+    res.json({ added, updated, total: imported.length, modelsImported: false });
+  } catch (error) { next(error); }
+});
 const requireUploadPassword = (req, res, next) => validUploadPassword(req.get("x-upload-password")) ? next() : res.status(401).json({ error: "Неверный пароль для загрузки." });
 const uploadRoot = path.join(tempRoot, "uploads");
 const diskStorage = multer.diskStorage({ destination: (_, __, callback) => fs.mkdir(uploadRoot, { recursive: true }).then(() => callback(null, uploadRoot), callback), filename: (_, __, callback) => callback(null, crypto.randomBytes(24).toString("hex")) });
@@ -162,7 +198,7 @@ app.get("/api/models/:jobId/status", (req, res) => { const job = jobs.get(safeId
 for (const [suffix, file, type] of [["model.glb", "model.glb", "model/gltf-binary"], ["metadata.json", "metadata.json", "application/json"]]) app.get(`/api/models/:jobId/${suffix}`, async (req, res) => { const id = safeId(req.params.jobId), job = jobs.get(id); if (!job || job.status !== "ready") return res.status(404).json({ error: "Результат ещё не готов." }); try { res.set({ "Content-Type": type, "Cache-Control": "private, max-age=86400, immutable" }); res.sendFile(file, { root: path.join(root, id) }); } catch { res.status(404).json({ error: "Результат не найден." }); } });
 
 app.post("/api/projects/:id/model", requireUser, ifcUpload.single("model"), async (req, res, next) => { let accepted = false; try { const projects = await readJsonArray(userProjectsFile), project = projects.find((item) => item.id === req.params.id && item.ownerId === req.user.id); if (!project) return res.status(404).json({ error: "Проект не найден." }); const extension = path.extname(req.file?.originalname || "").toLowerCase(); if (extension === ".glb") { if (req.file.size > config.maxGlbBytes) return res.status(413).json({ error: "GLB-файл слишком большой." }); if (!await validateGlbFile(req.file.path)) return res.status(400).json({ error: "Загрузите корректную GLB-модель." }); await storage.moveFrom(req.file.path, `user-projects/${req.user.id}/${project.id}/model.glb`); req.file.path = null; let updated; await updateUserProjects((items) => items.map((item) => item.id === project.id ? (updated = { ...item, modelUrl: `/api/projects/${item.id}/model`, status: "Модель готова", updatedAt: new Date().toISOString() }) : item)); return res.status(201).json(publicProject(updated)); } if (extension !== ".ifc" || !req.file || !await validateIfcFile(req.file.path)) return res.status(400).json({ error: "Загрузите корректную модель IFC или GLB." }); if (!conversionQueue.accepting) return res.status(503).json({ error: "Сервис конвертации временно недоступен." }); const jobId = crypto.randomBytes(16).toString("hex"), directory = path.join(tempRoot, jobId), input = path.join(directory, "input.ifc"); await fs.mkdir(directory, { recursive: true }); await fs.rename(req.file.path, input); accepted = true; const job = { id: jobId, projectId: project.id, userId: req.user.id, status: "queued", stage: "IFC принят", createdAt: Date.now(), size: req.file.size, ownerKey: req.user.id }; try { conversionQueue.enqueue(job); } catch (error) { await fs.rm(directory, { recursive: true, force: true }); accepted = false; if (["QUEUE_FULL", "OWNER_QUEUE_LIMIT"].includes(error.code)) return res.status(error.code === "QUEUE_FULL" ? 503 : 429).json({ error: "Очередь конвертации занята. Попробуйте позже.", code: error.code }); throw error; } await updateUserProjects((items) => items.map((item) => item.id === project.id ? { ...item, status: "Обработка IFC", updatedAt: new Date().toISOString() } : item)); res.status(202).json({ jobId, status: "processing" }); } catch (error) { next(error); } finally { if (!accepted) await unlinkUpload(req.file); } });
-app.get("/api/projects/:id/model", requireUser, async (req, res, next) => { try { const project = (await readJsonArray(userProjectsFile)).find((item) => item.id === req.params.id && item.ownerId === req.user.id && item.modelUrl); if (!project) return res.status(404).end(); res.sendFile(storage.path(`user-projects/${req.user.id}/${project.id}/model.glb`), (error) => { if (error && !res.headersSent) res.status(404).end(); }); } catch (error) { next(error); } });
+app.get("/api/projects/:id/model", requireUser, async (req, res, next) => { try { const projectId = safeProjectId(req.params.id), userId = safeUserId(req.user.id); if (!projectId || !userId) return res.status(404).end(); const project = (await readJsonArray(userProjectsFile)).find((item) => item.id === projectId && item.ownerId === userId && item.modelUrl); if (!project) return res.status(404).end(); res.sendFile("model.glb", { root: path.join(root, "user-projects", userId, projectId) }, (error) => { if (error && !res.headersSent) res.status(404).end(); }); } catch (error) { next(error); } });
 const publicRoomAsset = (room, filename, version) => `/api/rooms/${room}/assets/${encodeURIComponent(filename)}${version ? `?v=${Math.trunc(version)}` : ""}`;
 const projectFloorplanName = (name) => /^floorplan\.(jpg|jpeg|png|webp)$/.test(name);
 export async function projectManifest() {

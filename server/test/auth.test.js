@@ -15,6 +15,7 @@ test("registration creates a durable account and cookie session", async () => {
   try {
     const registered = await fetch(`${base}/api/auth/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Анна Смирнова", email: "ANNA@example.com", password: "house2026" }) });
     assert.equal(registered.status, 201);
+    assert.match(registered.headers.get("ratelimit") || "", /300-in-15min/);
     const cookie = registered.headers.get("set-cookie").split(";")[0];
     assert.match(cookie, /^roomark_session=/);
     assert.equal((await registered.json()).user.email, "anna@example.com");
@@ -41,6 +42,17 @@ test("registration creates a durable account and cookie session", async () => {
     const projects = await fetch(`${base}/api/projects`, { headers: { Cookie: cookie } }).then((response) => response.json());
     assert.equal(projects.length, 1);
     assert.equal("ownerId" in projects[0], false);
+    const imported = await fetch(`${base}/api/account/import`, { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json" }, body: JSON.stringify({ format: "roomark-projects", version: 1, projects: [{ ...createdProject, name: "Дом восстановлен" }, { name: "Импортированный объект", area: 75, rooms: 3, theme: "Ночной" }] }) });
+    assert.equal(imported.status, 200);
+    assert.deepEqual(await imported.json(), { added: 1, updated: 1, total: 2, modelsImported: false });
+    const restoredProjects = await fetch(`${base}/api/projects`, { headers: { Cookie: cookie } }).then((response) => response.json());
+    assert.equal(restoredProjects.length, 2);
+    assert.equal(restoredProjects.find((project) => project.id === createdProject.id).name, "Дом восстановлен");
+    assert.equal(restoredProjects.find((project) => project.name === "Импортированный объект").modelUrl, null);
+    const importedProject = restoredProjects.find((project) => project.name === "Импортированный объект");
+    assert.equal((await fetch(`${base}/api/projects/${importedProject.id}`, { method: "DELETE", headers: { Cookie: cookie } })).status, 204);
+    assert.equal((await fetch(`${base}/api/projects`, { headers: { Cookie: cookie } }).then((response) => response.json())).length, 1);
+    assert.equal((await fetch(`${base}/api/account/import`, { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json" }, body: JSON.stringify({ projects: [{ name: "x" }] }) })).status, 400);
     assert.equal((await fetch(`${base}/api/projects/${createdProject.id}`, { headers: { Cookie: "roomark_session=invalid" } })).status, 401);
     const expiredToken = "expired-session-token", sessions = JSON.parse(await fs.readFile(path.join(storage, "sessions.json"), "utf8"));
     const { createHash } = await import("node:crypto"); sessions.push({ tokenHash: createHash("sha256").update(expiredToken).digest("hex"), userId: stored[0].id, expiresAt: Date.now() - 1 });

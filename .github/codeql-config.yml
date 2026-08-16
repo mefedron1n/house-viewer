@@ -1,0 +1,4 @@
+name: "House Viewer CodeQL configuration"
+
+paths-ignore:
+  - "vendor/**"

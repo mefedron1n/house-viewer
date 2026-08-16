@@ -45,7 +45,7 @@ See the documented, safe template in `server/.env.example`.
 - `MAX_IFC_UPLOAD_MB`, `MAX_GLB_UPLOAD_MB`, `MAX_IMAGE_UPLOAD_MB` — separate disk-upload limits.
 - `MAX_IMAGE_WIDTH`, `MAX_IMAGE_HEIGHT`, `MAX_IMAGE_PIXELS` — decoded-image limits.
 - `CONVERSION_TIMEOUT_MS`, `MAX_CONCURRENT_CONVERSIONS`, `MAX_CONVERSION_QUEUE`, `MAX_USER_CONVERSION_JOBS` — converter and queue limits.
-- `LOGIN_RATE_LIMIT_*`, `REGISTER_RATE_LIMIT_*`, `CONVERSION_RATE_LIMIT_*` — per-process abuse limits.
+- `API_RATE_LIMIT_*`, `LOGIN_RATE_LIMIT_*`, `REGISTER_RATE_LIMIT_*`, `CONVERSION_RATE_LIMIT_*` — per-process abuse limits.
 - `UPLOAD_PASSWORD` — required in production; never commit it.
 - `SHUTDOWN_TIMEOUT_MS` — graceful conversion drain time.
 
