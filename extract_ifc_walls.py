@@ -54,14 +54,16 @@ def extract_walls(input_path: Path):
     walls = []
     for ifc_type in WALL_TYPES:
         for element in model.by_type(ifc_type):
-            walls.append({
-                "expressId": element.id(),
-                "globalId": getattr(element, "GlobalId", None),
-                "ifcType": element.is_a(),
-                "name": getattr(element, "Name", None) or "Без названия",
-                "description": getattr(element, "Description", None),
-                "properties": read_properties(element),
-            })
+            walls.append(
+                {
+                    "expressId": element.id(),
+                    "globalId": getattr(element, "GlobalId", None),
+                    "ifcType": element.is_a(),
+                    "name": getattr(element, "Name", None) or "Без названия",
+                    "description": getattr(element, "Description", None),
+                    "properties": read_properties(element),
+                }
+            )
 
     # GlobalId is stable; expressId also helps converters that retain numeric IFC ids.
     return {
@@ -76,8 +78,13 @@ def extract_walls(input_path: Path):
 def main():
     parser = argparse.ArgumentParser(description="Определить стены в IFC-файле")
     parser.add_argument("input", type=Path, help="Путь к IFC-файлу")
-    parser.add_argument("--output", "-o", type=Path, default=Path("walls.json"),
-                        help="Файл JSON для сайта (по умолчанию walls.json)")
+    parser.add_argument(
+        "--output",
+        "-o",
+        type=Path,
+        default=Path("walls.json"),
+        help="Файл JSON для сайта (по умолчанию walls.json)",
+    )
     args = parser.parse_args()
 
     if not args.input.is_file():

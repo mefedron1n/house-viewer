@@ -1,4 +1,6 @@
-.studio-header .profile { gap: 0; }
+.studio-header .profile {
+  gap: 0;
+}
 .studio-header .profile > .profile-trigger {
   width: auto;
   height: auto;

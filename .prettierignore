@@ -1,0 +1,6 @@
+vendor/
+server/node_modules/
+models/
+img/
+images/
+server/package-lock.json

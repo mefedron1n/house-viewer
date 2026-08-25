@@ -1,2 +1,87 @@
-:root{--brand-ink:#25251F;--brand-paper:#F2EFE7;--brand-paper-deep:#E8E1D5;--brand-surface:#FCF9F2;--brand-surface-raised:#FFFDF8;--brand-moss:#45503D;--brand-moss-dark:#252D23;--brand-clay:#A66E50;--brand-accent:#EFA321;--brand-accent-hover:#D98C10;--brand-accent-active:#BF7405;--brand-accent-soft:#F7E5BC;--spatial-bg:#20251F;--spatial-canvas:#2A3029;--spatial-surface:rgba(43,50,42,.92);--spatial-surface-solid:#2B322A;--spatial-surface-hover:#353D33;--spatial-surface-active:#404936;--text-primary:#25251F;--text-secondary:#676257;--text-muted:#8D877C;--text-inverse:#F8F4E9;--text-inverse-secondary:#C9C7BD;--border-soft:rgba(52,49,41,.12);--border-default:rgba(52,49,41,.20);--border-inverse:rgba(255,255,255,.14);--success:#55745A;--success-soft:#E8F0E7;--warning:#A66F20;--warning-soft:#F7EAD3;--danger:#A45140;--danger-soft:#F5E3DE;--info:#5F7480;--info-soft:#E5ECEF;--radius-control:10px;--radius-card:20px;--radius-media:30px;--radius-section:42px;--radius-pill:999px;--shadow-xs:0 1px 2px rgba(30,28,23,.05);--shadow-sm:0 8px 24px rgba(30,28,23,.08);--shadow-md:0 20px 52px rgba(30,28,23,.12);--shadow-overlay:0 30px 80px rgba(16,15,12,.20);--ease-standard:cubic-bezier(.2,.7,.2,1);--ease-emphasized:cubic-bezier(.16,1,.3,1);--duration-fast:160ms;--duration-medium:320ms;--duration-slow:700ms;--focus-ring:0 0 0 4px rgba(239,163,33,.24);--font-display:"Literata",Georgia,serif;--font-ui:"DM Sans",Arial,sans-serif}
-*:focus-visible{outline:none;box-shadow:var(--focus-ring)}button,a,input,select,textarea{transition:border-color var(--duration-fast),background-color var(--duration-fast),color var(--duration-fast),box-shadow var(--duration-fast),transform var(--duration-fast)}button:disabled,[aria-disabled="true"]{cursor:not-allowed;opacity:.58}[hidden]{display:none!important}@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+:root {
+  --brand-ink: #25251f;
+  --brand-paper: #f2efe7;
+  --brand-paper-deep: #e8e1d5;
+  --brand-surface: #fcf9f2;
+  --brand-surface-raised: #fffdf8;
+  --brand-moss: #45503d;
+  --brand-moss-dark: #252d23;
+  --brand-clay: #a66e50;
+  --brand-accent: #efa321;
+  --brand-accent-hover: #d98c10;
+  --brand-accent-active: #bf7405;
+  --brand-accent-soft: #f7e5bc;
+  --spatial-bg: #20251f;
+  --spatial-canvas: #2a3029;
+  --spatial-surface: rgba(43, 50, 42, 0.92);
+  --spatial-surface-solid: #2b322a;
+  --spatial-surface-hover: #353d33;
+  --spatial-surface-active: #404936;
+  --text-primary: #25251f;
+  --text-secondary: #676257;
+  --text-muted: #8d877c;
+  --text-inverse: #f8f4e9;
+  --text-inverse-secondary: #c9c7bd;
+  --border-soft: rgba(52, 49, 41, 0.12);
+  --border-default: rgba(52, 49, 41, 0.2);
+  --border-inverse: rgba(255, 255, 255, 0.14);
+  --success: #55745a;
+  --success-soft: #e8f0e7;
+  --warning: #a66f20;
+  --warning-soft: #f7ead3;
+  --danger: #a45140;
+  --danger-soft: #f5e3de;
+  --info: #5f7480;
+  --info-soft: #e5ecef;
+  --radius-control: 10px;
+  --radius-card: 20px;
+  --radius-media: 30px;
+  --radius-section: 42px;
+  --radius-pill: 999px;
+  --shadow-xs: 0 1px 2px rgba(30, 28, 23, 0.05);
+  --shadow-sm: 0 8px 24px rgba(30, 28, 23, 0.08);
+  --shadow-md: 0 20px 52px rgba(30, 28, 23, 0.12);
+  --shadow-overlay: 0 30px 80px rgba(16, 15, 12, 0.2);
+  --ease-standard: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 160ms;
+  --duration-medium: 320ms;
+  --duration-slow: 700ms;
+  --focus-ring: 0 0 0 4px rgba(239, 163, 33, 0.24);
+  --font-display: "Literata", Georgia, serif;
+  --font-ui: "DM Sans", Arial, sans-serif;
+}
+*:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+button,
+a,
+input,
+select,
+textarea {
+  transition:
+    border-color var(--duration-fast),
+    background-color var(--duration-fast),
+    color var(--duration-fast),
+    box-shadow var(--duration-fast),
+    transform var(--duration-fast);
+}
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+[hidden] {
+  display: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

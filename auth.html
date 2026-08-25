@@ -1,65 +1,104 @@
 <!doctype html>
 <html lang="ru">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#E9E3D8">
-<title>Войти — Roomark</title>
-<link rel="icon" href="./images/roomark-logo.png">
-<link rel="stylesheet" href="./styles/tokens.css?v=2">
-<script src="./scripts/config.js?v=1">
-</script>
-<link rel="stylesheet" href="./styles/editorial.css?v=4">
-<link rel="stylesheet" href="./styles/navigation.css?v=1">
-</head>
-<body class="auth-body">
-<main class="auth-layout">
-<a class="wordmark auth-brand" href="./">
-<img src="./images/roomark-logo.png" alt="">Roomark</a>
-<section class="auth-note">
-<p class="kicker light">Пространство проекта</p>
-<h1>Дом начинается<br>с внимательного<br>
-<em>взгляда.</em>
-</h1>
-<p>Все модели, материалы и решения вашей команды — в одном спокойном рабочем пространстве.</p>
-</section>
-<section class="auth-panel">
-<div class="auth-tabs" role="tablist">
-<button type="button" data-auth-mode="login">Вход</button>
-<button type="button" data-auth-mode="register">Регистрация</button>
-</div>
-<form id="auth-form" novalidate>
-<p class="kicker" id="auth-kicker">С возвращением</p>
-<h2 id="auth-title">Войти в кабинет</h2>
-<p class="auth-lede" id="auth-lede">
-</p>
-<label id="name-field">Ваше имя<input name="name" autocomplete="name" placeholder="Анна Смирнова" minlength="2" maxlength="80">
-</label>
-<label>Электронная почта<input name="email" type="email" autocomplete="email" inputmode="email" placeholder="name@studio.ru" maxlength="254" required>
-</label>
-<label>Пароль<div class="password-control">
-<input name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="Не менее 8 символов" required>
-<button type="button" class="password-toggle" aria-label="Показать пароль">Показать</button>
-</div>
-</label>
-<div id="password-hint" class="password-hint" hidden>
-<span data-rule="length">8+ символов</span>
-<span data-rule="letter">буква</span>
-<span data-rule="number">цифра</span>
-</div>
-<label id="confirm-field">Повторите пароль<input name="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" placeholder="Ещё раз" required>
-</label>
-<button class="button auth-submit" type="submit">
-<span id="auth-submit-text">Войти</span>
-<span>↗</span>
-</button>
-<p class="form-status" id="auth-status" role="alert" aria-live="polite">
-</p>
-</form>
-<p class="auth-terms">Продолжая, вы принимаете условия сервиса и политику конфиденциальности.</p>
-</section>
-</main>
-<script src="./scripts/auth.js?v=2">
-</script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#E9E3D8" />
+    <title>Войти — Roomark</title>
+    <link rel="icon" href="./images/roomark-logo.png" />
+    <link rel="stylesheet" href="./styles/tokens.css?v=2" />
+    <script src="./scripts/config.js?v=1"></script>
+    <link rel="stylesheet" href="./styles/editorial.css?v=4" />
+    <link rel="stylesheet" href="./styles/navigation.css?v=1" />
+  </head>
+  <body class="auth-body">
+    <main class="auth-layout">
+      <a class="wordmark auth-brand" href="./">
+        <img src="./images/roomark-logo.png" alt="" />Roomark</a
+      >
+      <section class="auth-note">
+        <p class="kicker light">Пространство проекта</p>
+        <h1>
+          Дом начинается<br />с внимательного<br />
+          <em>взгляда.</em>
+        </h1>
+        <p>
+          Все модели, материалы и решения вашей команды — в одном спокойном рабочем пространстве.
+        </p>
+      </section>
+      <section class="auth-panel">
+        <div class="auth-tabs" role="tablist">
+          <button type="button" data-auth-mode="login">Вход</button>
+          <button type="button" data-auth-mode="register">Регистрация</button>
+        </div>
+        <form id="auth-form" novalidate>
+          <p class="kicker" id="auth-kicker">С возвращением</p>
+          <h2 id="auth-title">Войти в кабинет</h2>
+          <p class="auth-lede" id="auth-lede"></p>
+          <label id="name-field"
+            >Ваше имя<input
+              name="name"
+              autocomplete="name"
+              placeholder="Анна Смирнова"
+              minlength="2"
+              maxlength="80"
+            />
+          </label>
+          <label
+            >Электронная почта<input
+              name="email"
+              type="email"
+              autocomplete="email"
+              inputmode="email"
+              placeholder="name@studio.ru"
+              maxlength="254"
+              required
+            />
+          </label>
+          <label
+            >Пароль
+            <div class="password-control">
+              <input
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                minlength="8"
+                maxlength="128"
+                placeholder="Не менее 8 символов"
+                required
+              />
+              <button type="button" class="password-toggle" aria-label="Показать пароль">
+                Показать
+              </button>
+            </div>
+          </label>
+          <div id="password-hint" class="password-hint" hidden>
+            <span data-rule="length">8+ символов</span>
+            <span data-rule="letter">буква</span>
+            <span data-rule="number">цифра</span>
+          </div>
+          <label id="confirm-field"
+            >Повторите пароль<input
+              name="confirmPassword"
+              type="password"
+              autocomplete="new-password"
+              minlength="8"
+              maxlength="128"
+              placeholder="Ещё раз"
+              required
+            />
+          </label>
+          <button class="button auth-submit" type="submit">
+            <span id="auth-submit-text">Войти</span>
+            <span>↗</span>
+          </button>
+          <p class="form-status" id="auth-status" role="alert" aria-live="polite"></p>
+        </form>
+        <p class="auth-terms">
+          Продолжая, вы принимаете условия сервиса и политику конфиденциальности.
+        </p>
+      </section>
+    </main>
+    <script src="./scripts/auth.js?v=2"></script>
+  </body>
 </html>

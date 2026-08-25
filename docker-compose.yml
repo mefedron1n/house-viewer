@@ -8,6 +8,7 @@ services:
       MODEL_STORAGE_DIR: /data/models
       TEMP_DIR: /data/tmp
       IFC_CONVERT_PATH: /opt/conda/bin/IfcConvert
+      TRUST_PROXY_HOPS: 1
     volumes: ["ifc-models:/data/models"]
     networks: ["roomark-net"]
   web:

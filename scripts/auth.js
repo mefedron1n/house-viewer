@@ -1,14 +1,96 @@
 (() => {
-  const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const $ = (s, r = document) => r.querySelector(s),
+    $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const API = window.HouseConfig?.apiBaseUrl || location.origin;
-  const request = async (path, options = {}) => { const response = await fetch(`${API}${path}`, { ...options, credentials: "include", headers: { "Content-Type": "application/json", ...(options.headers || {}) } }); const body = await response.json().catch(() => null); if (!response.ok) throw new Error(body?.error || "Сервис временно недоступен. Попробуйте ещё раз."); return body; };
-  const form = $("#auth-form"), status = $("#auth-status"), submit = form.querySelector('[type="submit"]'), password = form.password;
+  const request = async (path, options = {}) => {
+    const response = await fetch(`${API}${path}`, {
+      ...options,
+      credentials: "include",
+      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok)
+      throw new Error(body?.error || "Сервис временно недоступен. Попробуйте ещё раз.");
+    return body;
+  };
+  const form = $("#auth-form"),
+    status = $("#auth-status"),
+    submit = form.querySelector('[type="submit"]'),
+    password = form.password;
   let mode = new URLSearchParams(location.search).get("mode") === "register" ? "register" : "login";
-  function render() { const register = mode === "register"; $$('[data-auth-mode]').forEach((button) => { const selected = button.dataset.authMode === mode; button.classList.toggle("active", selected); button.setAttribute("aria-selected", String(selected)); }); $("#name-field").hidden = !register; $("#confirm-field").hidden = !register; $("#password-hint").hidden = !register; form.name.required = register; form.confirmPassword.required = register; $("#auth-title").textContent = register ? "Создать аккаунт" : "Войти в кабинет"; $("#auth-kicker").textContent = register ? "Начало нового проекта" : "С возвращением"; $("#auth-lede").textContent = register ? "После регистрации вы создадите первый объект и получите отдельное пространство для команды." : "Продолжите работу с проектами, материалами и замечаниями."; $("#auth-submit-text").textContent = register ? "Создать аккаунт" : "Войти"; password.autocomplete = register ? "new-password" : "current-password"; status.textContent = ""; }
-  function updateRules() { const rules = { length: password.value.length >= 8, letter: /[a-zа-яё]/i.test(password.value), number: /\d/.test(password.value) }; Object.entries(rules).forEach(([key, valid]) => $(`[data-rule="${key}"]`)?.classList.toggle("valid", valid)); }
-  $$('[data-auth-mode]').forEach((button) => button.addEventListener("click", () => { mode = button.dataset.authMode; form.reset(); history.replaceState({}, "", `?mode=${mode}`); render(); updateRules(); }));
-  $(".password-toggle").addEventListener("click", (event) => { const shown = password.type === "text"; password.type = shown ? "password" : "text"; event.currentTarget.textContent = shown ? "Показать" : "Скрыть"; });
+  function render() {
+    const register = mode === "register";
+    $$("[data-auth-mode]").forEach((button) => {
+      const selected = button.dataset.authMode === mode;
+      button.classList.toggle("active", selected);
+      button.setAttribute("aria-selected", String(selected));
+    });
+    $("#name-field").hidden = !register;
+    $("#confirm-field").hidden = !register;
+    $("#password-hint").hidden = !register;
+    form.name.required = register;
+    form.confirmPassword.required = register;
+    $("#auth-title").textContent = register ? "Создать аккаунт" : "Войти в кабинет";
+    $("#auth-kicker").textContent = register ? "Начало нового проекта" : "С возвращением";
+    $("#auth-lede").textContent = register
+      ? "После регистрации вы создадите первый объект и получите отдельное пространство для команды."
+      : "Продолжите работу с проектами, материалами и замечаниями.";
+    $("#auth-submit-text").textContent = register ? "Создать аккаунт" : "Войти";
+    password.autocomplete = register ? "new-password" : "current-password";
+    status.textContent = "";
+  }
+  function updateRules() {
+    const rules = {
+      length: password.value.length >= 8,
+      letter: /[a-zа-яё]/i.test(password.value),
+      number: /\d/.test(password.value),
+    };
+    Object.entries(rules).forEach(([key, valid]) =>
+      $(`[data-rule="${key}"]`)?.classList.toggle("valid", valid)
+    );
+  }
+  $$("[data-auth-mode]").forEach((button) =>
+    button.addEventListener("click", () => {
+      mode = button.dataset.authMode;
+      form.reset();
+      history.replaceState({}, "", `?mode=${mode}`);
+      render();
+      updateRules();
+    })
+  );
+  $(".password-toggle").addEventListener("click", (event) => {
+    const shown = password.type === "text";
+    password.type = shown ? "password" : "text";
+    event.currentTarget.textContent = shown ? "Показать" : "Скрыть";
+  });
   password.addEventListener("input", updateRules);
-  form.addEventListener("submit", async (event) => { event.preventDefault(); status.textContent = ""; if (!form.reportValidity()) return; if (mode === "register" && password.value !== form.confirmPassword.value) { status.textContent = "Пароли не совпадают."; form.confirmPassword.focus(); return; } submit.disabled = true; try { await request(`/api/auth/${mode}`, { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData(form))) }); location.href = "./studio.html"; } catch (error) { status.textContent = error.message; } finally { submit.disabled = false; } });
-  render(); updateRules(); request("/api/auth/me").then(() => { location.href = "./studio.html"; }).catch(() => {});
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    status.textContent = "";
+    if (!form.reportValidity()) return;
+    if (mode === "register" && password.value !== form.confirmPassword.value) {
+      status.textContent = "Пароли не совпадают.";
+      form.confirmPassword.focus();
+      return;
+    }
+    submit.disabled = true;
+    try {
+      await request(`/api/auth/${mode}`, {
+        method: "POST",
+        body: JSON.stringify(Object.fromEntries(new FormData(form))),
+      });
+      location.href = "./studio.html";
+    } catch (error) {
+      status.textContent = error.message;
+    } finally {
+      submit.disabled = false;
+    }
+  });
+  render();
+  updateRules();
+  request("/api/auth/me")
+    .then(() => {
+      location.href = "./studio.html";
+    })
+    .catch(() => {});
 })();
