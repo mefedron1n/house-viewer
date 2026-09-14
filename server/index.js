@@ -11,7 +11,7 @@ import { promisify } from "node:util";
 import { ConversionQueue } from "./conversion-queue.js";
 import { createStorage } from "./storage/index.js";
 import { config } from "./config.js";
-import { normalizeImage, validateGlbFile, validateIfcFile } from "./file-validation.js";
+import { normalizeImage, validateGlbFile, validateIfcFile, validatePdfFile } from "./file-validation.js";
 import { buildRoomConnections, linkBoundary, linkNearbyElements, resolveProxyType, runIfcAnalyzer } from "./ifc-analysis.js";
 
 const { nodeEnv, isProduction } = config;
@@ -360,11 +360,9 @@ app.use(
       );
     },
     credentials: true,
-    methods: ["GET", "HEAD", "POST", "PATCH", "DELETE", "OPTIONS"],
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   })
 );
-app.use(express.json({ limit: config.jsonLimit }));
-app.use(express.urlencoded({ extended: false, limit: config.jsonLimit }));
 app.use((req, res, next) => {
   if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method) || !req.headers.cookie)
     return next();
@@ -401,6 +399,9 @@ const registerRateLimit = limiter({
   message: "Слишком много регистраций. Попробуйте позже.",
 });
 app.use("/api", apiRateLimit);
+app.use(express.json({ limit: config.jsonLimit, inflate: false }));
+app.use(express.urlencoded({ extended: false, limit: config.jsonLimit, inflate: false, parameterLimit: 100 }));
+app.use("/api", (_, res, next) => { res.set("Cache-Control", "no-store"); next(); });
 
 const scrypt = promisify(crypto.scrypt);
 const sessionMaxAge = config.sessionMaxAgeMs;
@@ -467,7 +468,10 @@ function cookies(req) {
       .split(";")
       .map((part) => part.trim().split(/=(.*)/s).slice(0, 2))
       .filter(([key]) => key)
-      .map(([key, value]) => [key, decodeURIComponent(value || "")])
+      .map(([key, value]) => {
+        try { return [key, decodeURIComponent(value || "")]; }
+        catch { return [key, ""]; }
+      })
   );
 }
 function cookiePolicy() {
@@ -497,7 +501,7 @@ async function createSession(userId, res) {
 }
 async function currentUser(req) {
   const token = cookies(req).roomark_session;
-  if (!token) return null;
+  if (!/^[a-f0-9]{64}$/.test(token || "")) return null;
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex"),
     sessions = await readJsonArray(sessionsFile),
     session = sessions.find(
@@ -519,6 +523,37 @@ async function requireUser(req, res, next) {
     next(error);
   }
 }
+
+// A project id selects data; it is never proof that the caller owns that data.
+async function requireProjectOwner(req, res, next) {
+  const rawId = req.params.projectId ?? req.params.id ?? req.query.project;
+  if (rawId === undefined) return next(); // Public legacy workspace has no project id.
+  const projectId = typeof rawId === "string" && safeProjectId(rawId);
+  if (!projectId) return res.status(400).json({ error: "Некорректный проект." });
+  try {
+    const user = req.user || await currentUser(req);
+    if (!user) return res.status(401).json({ error: "Требуется вход." });
+    const project = (await readJsonArray(userProjectsFile)).find(
+      (item) => item.id === projectId && item.ownerId === user.id);
+    if (!project) return res.status(404).json({ error: "Проект не найден." });
+    req.user = user;
+    next();
+  } catch (error) { next(error); }
+}
+app.use("/api/notes", requireProjectOwner);
+app.use("/api/project", requireProjectOwner);
+app.use("/api/project/:projectId/floorplan", requireProjectOwner);
+
+app.use("/api/models/:jobId", async (req, res, next) => {
+  const job = jobs.get(safeId(req.params.jobId));
+  if (!job?.userId) return next();
+  try {
+    const user = await currentUser(req);
+    if (!user) return res.status(401).json({ error: "Требуется вход." });
+    if (user.id !== job.userId) return res.status(404).json({ error: "Задача не найдена." });
+    next();
+  } catch (error) { next(error); }
+});
 
 app.post("/api/auth/register", registerRateLimit, async (req, res, next) => {
   try {
@@ -569,8 +604,10 @@ app.post("/api/auth/register", registerRateLimit, async (req, res, next) => {
 app.post("/api/auth/login", loginRateLimit, async (req, res, next) => {
   try {
     const email = normalizeEmail(req.body.email),
-      password = String(req.body.password || ""),
-      user = (await readJsonArray(usersFile)).find((item) => item.email === email);
+      password = String(req.body.password || "");
+    if (!validEmail(email) || !password || password.length > 128)
+      return res.status(401).json({ error: "Неверная почта или пароль." });
+    const user = (await readJsonArray(usersFile)).find((item) => item.email === email);
     const valid = user
       ? await verifyPassword(password, user.passwordHash)
       : (await scrypt(password || "invalid-password", Buffer.alloc(16), 64), false);
@@ -642,11 +679,11 @@ app.patch("/api/auth/profile", requireUser, async (req, res, next) => {
     next(error);
   }
 });
-app.patch("/api/auth/password", requireUser, async (req, res, next) => {
+app.patch("/api/auth/password", loginRateLimit, requireUser, async (req, res, next) => {
   try {
     const currentPassword = String(req.body.currentPassword || ""),
       newPassword = String(req.body.newPassword || "");
-    if (!(await verifyPassword(currentPassword, req.user.passwordHash)))
+    if (currentPassword.length > 128 || !(await verifyPassword(currentPassword, req.user.passwordHash)))
       return res.status(401).json({ error: "Неверный текущий пароль." });
     if (
       newPassword.length < 8 ||
@@ -658,16 +695,19 @@ app.patch("/api/auth/password", requireUser, async (req, res, next) => {
         .status(400)
         .json({ error: "Новый пароль должен содержать не менее 8 символов, букву и цифру." });
     const passwordHash = await hashPassword(newPassword);
-    await updateAuth(async () =>
-      writeJsonArray(
+    await updateAuth(async () => {
+      await writeJsonArray(
         usersFile,
         (await readJsonArray(usersFile)).map((item) =>
           item.id === req.user.id
             ? { ...item, passwordHash, updatedAt: new Date().toISOString() }
             : item
         )
-      )
-    );
+      );
+      await writeJsonArray(sessionsFile,
+        (await readJsonArray(sessionsFile)).filter((session) => session.userId !== req.user.id));
+    });
+    await createSession(req.user.id, res);
     res.status(204).end();
   } catch (error) {
     next(error);
@@ -869,10 +909,19 @@ const decodeUploadPasswordHeader = (value) => {
     return "";
   }
 };
+const uploadPasswordRateLimit = limiter({
+  ...config.loginRate,
+  skipSuccessfulRequests: true,
+  message: "Слишком много попыток ввода пароля загрузки. Попробуйте позже.",
+});
 const requireUploadPassword = (req, res, next) =>
-  validUploadPassword(decodeUploadPasswordHeader(req.get("x-upload-password")))
-    ? next()
-    : res.status(401).json({ error: "Неверный пароль для загрузки." });
+  uploadPasswordRateLimit(req, res, () =>
+    validUploadPassword(decodeUploadPasswordHeader(req.get("x-upload-password")))
+      ? next()
+      : res.status(401).json({ error: "Неверный пароль для загрузки." }));
+app.post("/api/upload-password/validate", requireUploadPassword, (_, res) =>
+  res.status(204).end()
+);
 const uploadRoot = path.join(tempRoot, "uploads");
 const diskStorage = multer.diskStorage({
   destination: (_, __, callback) =>
@@ -975,6 +1024,8 @@ for (const [suffix, file, type] of [
 app.post(
   "/api/projects/:id/model",
   requireUser,
+  requireProjectOwner,
+  conversionRateLimit,
   ifcUpload.single("model"),
   async (req, res, next) => {
     let accepted = false;
@@ -1089,6 +1140,39 @@ app.get("/api/projects/:id/model", requireUser, async (req, res, next) => {
     next(error);
   }
 });
+app.delete(
+  "/api/projects/:id/assets/:asset",
+  requireUser,
+  requireProjectOwner,
+  requireUploadPassword,
+  async (req, res, next) => {
+    try {
+      const projectId = safeProjectId(req.params.id),
+        userId = safeUserId(req.user.id),
+        filename = { model: "model.glb", source: "source.ifc" }[req.params.asset];
+      if (!projectId || !userId || !filename)
+        return res.status(404).json({ error: "Файл не найден." });
+      const key = `user-projects/${userId}/${projectId}/${filename}`;
+      if (!(await storage.exists(key))) return res.status(404).json({ error: "Файл не найден." });
+      await storage.delete(key);
+      let updated;
+      await updateUserProjects((projects) =>
+        projects.map((project) => {
+          if (project.id !== projectId || project.ownerId !== userId) return project;
+          updated = {
+            ...project,
+            ...(req.params.asset === "model" ? { modelUrl: null, status: "Черновик" } : {}),
+            updatedAt: new Date().toISOString(),
+          };
+          return updated;
+        })
+      );
+      res.json({ project: publicProject(updated), deleted: req.params.asset });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 for (const [route, file] of [
   ["metadata", "project.json"],
   ["rooms", "rooms.json"],
@@ -1148,7 +1232,7 @@ app.get("/api/project", async (req, res, next) => {
 app.get("/api/project/:projectId/floorplan/:filename", (req, res) => {
   const projectId = safeProjectId(req.params.projectId);
   if (!projectId || !projectFloorplanName(req.params.filename)) return res.status(404).end();
-  res.set("Cache-Control", "public, max-age=3600");
+  res.set("Cache-Control", "private, no-store");
   res.sendFile(req.params.filename, { root: spatialProjectRoot(projectId) }, (error) => {
     if (error && !res.headersSent) res.status(404).end();
   });
@@ -1272,7 +1356,7 @@ export async function roomManifest(room) {
   const renderFiles = files.filter((name) =>
     /^render-[a-f0-9]{16}\.(jpg|jpeg|png|webp)$/.test(name)
   );
-  const photoFiles = files.filter((name) => /^photo-[a-f0-9]{16}\.(jpg|jpeg|png|webp)$/.test(name));
+  const photoFiles = files.filter((name) => /^photo-[a-f0-9]{16}\.(jpg|jpeg|png|webp|pdf)$/.test(name));
   const datedRenders = await Promise.all(
     renderFiles.map(async (name) => ({
       name,
@@ -1294,6 +1378,7 @@ export async function roomManifest(room) {
         type: saved.type || "other",
         date: saved.date || new Date(modified).toISOString().slice(0, 10),
         comment: saved.comment || "",
+        mimeType: name.endsWith(".pdf") ? "application/pdf" : `image/${path.extname(name).slice(1).replace("jpg", "jpeg")}`,
         createdAt: saved.createdAt || new Date(modified).toISOString(),
       };
     })
@@ -1449,7 +1534,7 @@ app.get("/api/rooms/:room", async (req, res) => {
 app.get("/api/rooms/:room/assets/:filename", (req, res) => {
   if (
     !roomIds.has(req.params.room) ||
-    !/^(floorplan\.(jpg|jpeg|png|webp)|model\.glb|(render|photo)-[a-f0-9]{16}\.(jpg|jpeg|png|webp))$/.test(
+    !/^(floorplan\.(jpg|jpeg|png|webp)|model\.glb|render-[a-f0-9]{16}\.(jpg|jpeg|png|webp)|photo-[a-f0-9]{16}\.(jpg|jpeg|png|webp|pdf))$/.test(
       req.params.filename
     )
   )
@@ -1479,6 +1564,10 @@ app.post(
           !(await validateGlbFile(req.file.path))
         )
           return res.status(400).json({ error: "Для модели комнаты нужен корректный файл GLB." });
+      } else if (kind === "photo" && path.extname(req.file.originalname).toLowerCase() === ".pdf") {
+        if (!(await validatePdfFile(req.file.path)))
+          return res.status(400).json({ error: "Загрузите корректный PDF-файл." });
+        ext = ".pdf";
       } else {
         normalized = `${req.file.path}.normalized`;
         ({ extension: ext } = await normalizeImage(req.file.path, normalized, {
@@ -1496,8 +1585,8 @@ app.post(
         filename = `floorplan${ext}`;
       } else if (kind === "model") filename = "model.glb";
       else filename = `${kind}-${crypto.randomBytes(8).toString("hex")}${ext}`;
-      await moveFile(kind === "model" ? req.file.path : normalized, path.join(dir, filename));
-      if (kind === "model") req.file.path = null;
+      await moveFile(kind === "model" || ext === ".pdf" ? req.file.path : normalized, path.join(dir, filename));
+      if (kind === "model" || ext === ".pdf") req.file.path = null;
       else normalized = null;
       if (kind === "photo") {
         const allowedTypes = new Set(["construction", "completed", "defect", "control", "other"]),
@@ -1532,7 +1621,7 @@ app.post(
 export async function deleteRoomAsset(room, filename) {
   if (
     !roomIds.has(room) ||
-    !/^(floorplan\.(jpg|jpeg|png|webp)|model\.glb|(render|photo)-[a-f0-9]{16}\.(jpg|jpeg|png|webp))$/.test(
+    !/^(floorplan\.(jpg|jpeg|png|webp)|model\.glb|render-[a-f0-9]{16}\.(jpg|jpeg|png|webp)|photo-[a-f0-9]{16}\.(jpg|jpeg|png|webp|pdf))$/.test(
       filename
     )
   )

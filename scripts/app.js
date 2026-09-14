@@ -6,6 +6,7 @@ import RoomAnalyzer from "./room-analyzer/RoomAnalyzer.js";
 
 const $ = (id) => document.getElementById(id);
 const API_URL = window.HouseConfig?.apiBaseUrl || location.origin;
+const fetchApi = (url, options = {}) => fetch(url, { credentials: "include", ...options });
 const passwordHeader = (value) => `roomark-uri:${encodeURIComponent(value)}`;
 const viewer = $("viewer"),
   loadingScreen = $("loading-screen"),
@@ -16,7 +17,7 @@ const pageParams = new URLSearchParams(location.search);
 const projectId = pageParams.get("project");
 const projectQuery = projectId ? `?project=${encodeURIComponent(projectId)}` : "";
 const ifcMetadataPromise = projectId
-  ? fetch(`${API_URL}/api/projects/${encodeURIComponent(projectId)}/metadata`, { credentials: "include" })
+  ? fetchApi(`${API_URL}/api/projects/${encodeURIComponent(projectId)}/metadata`, { credentials: "include" })
       .then((response) => (response.ok ? response.json() : null))
       .catch(() => null)
   : Promise.resolve(null);
@@ -38,7 +39,8 @@ try {
   throw error;
 }
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
-renderer.setSize(viewer.clientWidth, viewer.clientHeight);
+// CSS keeps the canvas and pin overlay in the same viewport when panels change.
+renderer.setSize(viewer.clientWidth, viewer.clientHeight, false);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -99,8 +101,10 @@ let house,
   roomsAnalysis,
   roomHighlight,
   roomHighlightFade;
+let defaultMinDistance = 0.5,
+  defaultMaxDistance = 100;
 let wallsVisible = true,
-  roofVisible = true,
+  roofVisible = false,
   pinsVisible = true,
   viewerActive = !(pageParams.get("route") || "").startsWith("/rooms/"),
   modelRequested = false,
@@ -114,6 +118,7 @@ const draco = new DRACOLoader(manager);
 draco.setDecoderPath("./vendor/three/examples/jsm/libs/draco/gltf/");
 const loader = new GLTFLoader(manager);
 loader.setDRACOLoader(draco);
+loader.setWithCredentials(true);
 
 function disposeModel(model) {
   if (!model) return;
@@ -169,6 +174,8 @@ function fit(model) {
   controls.target.set(0, size.y * (pageParams.has("preview") ? 0.58 : 0.32), 0);
   controls.minDistance = max * 0.15;
   controls.maxDistance = max * 8;
+  defaultMinDistance = controls.minDistance;
+  defaultMaxDistance = controls.maxDistance;
   controls.update();
   originalPosition.copy(camera.position);
   originalTarget.copy(controls.target);
@@ -277,14 +284,6 @@ async function analyzeRooms(model) {
         );
       }
     }
-    wallsVisible = false;
-    model.traverse((object) => {
-      if (isWallMesh(object)) object.visible = false;
-    });
-    const wallsButton = $("walls-button");
-    wallsButton.classList.add("active");
-    wallsButton.setAttribute("aria-pressed", "true");
-    wallsButton.dataset.label = "Показать стены";
     roomsAnalysis = {
       success: true,
       source: "ifc-space",
@@ -303,6 +302,7 @@ async function analyzeRooms(model) {
           : null,
       })),
     };
+    applyPreferredVisibility();
     publishRoomsAnalysis();
     return;
   }
@@ -318,6 +318,7 @@ async function analyzeRooms(model) {
     return;
   }
   if (roomsAnalysis.debug?.group) scene.add(roomsAnalysis.debug.group);
+  applyPreferredVisibility();
   publishRoomsAnalysis();
 }
 function publishRoomsAnalysis() {
@@ -370,6 +371,8 @@ function publishRoomsAnalysis() {
     controls.target.copy(center);
     controls.minDistance = extent * 0.15;
     controls.maxDistance = extent * 8;
+    defaultMinDistance = controls.minDistance;
+    defaultMaxDistance = controls.maxDistance;
     controls.update();
     originalPosition.copy(position);
     originalTarget.copy(center);
@@ -411,6 +414,7 @@ window.exportRoomsMetadata = () => {
   return true;
 };
 function loadModel(url, label = "Загрузка проекта...") {
+  clearTimeout(window.__viewerReadyTimer);
   loadingScreen.classList.remove("hidden", "has-error");
   loadingText.style.display = "block";
   document.querySelector(".loader").style.display = "block";
@@ -422,11 +426,15 @@ function loadModel(url, label = "Загрузка проекта...") {
       finishModel(model, animations, url);
       setUploadStatus("Модель открыта в просмотрщике.");
     },
-    undefined,
+    (event) => {
+      if (event.total > 0)
+        loadingText.textContent = `${label.replace(/\.{3}$/, "")} · ${Math.round((event.loaded / event.total) * 100)}%`;
+    },
     () => showError("Не удалось открыть модель. Проверьте, что файл GLB корректен.")
   );
 }
 function showError(message) {
+  clearTimeout(window.__viewerReadyTimer);
   loadingScreen.classList.add("has-error");
   loadingText.style.display = "none";
   document.querySelector(".loader").style.display = "none";
@@ -440,24 +448,44 @@ const initialModelUrl =
 function requestInitialModel() {
   if (modelRequested) return;
   modelRequested = true;
+  // The boot timer only guards module startup. GLB download duration depends on project size.
+  clearTimeout(window.__viewerReadyTimer);
   loader.load(
     initialModelUrl,
     ({ scene: model, animations }) => finishModel(model, animations, initialModelUrl),
-    undefined,
-    () =>
+    (event) => {
+      if (event.total > 0)
+        loadingText.textContent = `Загрузка модели · ${Math.round((event.loaded / event.total) * 100)}%`;
+      else loadingText.textContent = "Загрузка модели…";
+    },
+    async () => {
+      if (projectId) {
+        try {
+          const check = await fetch(initialModelUrl, { method: "HEAD", credentials: "include" });
+          if (check.status === 401)
+            return showError("Сессия входа истекла. Откройте кабинет, войдите снова и повторите загрузку модели.");
+          if (check.status === 404)
+            return showError("Файл модели этого проекта не найден. Загрузите модель заново в кабинете.");
+        } catch {}
+      }
       showError(
         projectId
-          ? "Модель этого проекта ещё не готова или недоступна. Вернитесь в проект и загрузите IFC."
+          ? "Не удалось получить модель проекта. Проверьте вход в аккаунт и доступность локального API."
           : pageParams.has("model")
             ? "Модель комнаты не загрузилась."
             : "Модель house.glb не найдена. Поместите её в папку models."
-      )
+      );
+    }
   );
 }
 if (viewerActive) requestInitialModel();
 else loadingScreen.classList.add("hidden");
 
-$("home-button").onclick = () => animate(originalPosition, originalTarget);
+$("home-button").onclick = () => {
+  controls.minDistance = defaultMinDistance;
+  controls.maxDistance = defaultMaxDistance;
+  animate(originalPosition, originalTarget);
+};
 $("top-button").onclick = () => {
   if (!house) return;
   const spatial = window.RoomarkSpatialContext?.bounds;
@@ -478,6 +506,8 @@ $("rotate-button").onclick = (event) => {
   controls.autoRotate = !controls.autoRotate;
   controls.autoRotateSpeed = 1;
   event.currentTarget.classList.toggle("active", controls.autoRotate);
+  event.currentTarget.setAttribute("aria-pressed", String(controls.autoRotate));
+  event.currentTarget.textContent = controls.autoRotate ? "Выключить" : "Включить";
 };
 $("walls-button").onclick = (event) => {
   wallsVisible = !wallsVisible;
@@ -503,13 +533,6 @@ $("pins-button").onclick = (event) => {
   pinsVisible = !pinsVisible;
   noteLayer.hidden = !pinsVisible;
   event.currentTarget.classList.toggle("active", !pinsVisible);
-};
-$("screenshot-button").onclick = () => {
-  renderer.render(scene, camera);
-  const link = document.createElement("a");
-  link.download = `roomark-${new Date().toISOString().slice(0, 10)}.png`;
-  link.href = renderer.domElement.toDataURL("image/png");
-  link.click();
 };
 
 const fileInput = $("model-file-input"),
@@ -594,7 +617,7 @@ async function pollJob(jobId) {
   showProgress(0, true);
   const timer = setInterval(async () => {
     try {
-      const response = await fetch(`${API_URL}/api/models/${encodeURIComponent(jobId)}/status`);
+      const response = await fetchApi(`${API_URL}/api/models/${encodeURIComponent(jobId)}/status`);
       const job = await response.json();
       setUploadStatus(job.stage || "Обработка IFC");
       if (job.status === "ready") {
@@ -640,16 +663,36 @@ $("upload-cancel").onclick = () => activeUpload?.abort();
   })
 );
 dropzone.addEventListener("drop", (event) => selectModel(event.dataTransfer.files[0]));
-$("document-glb-upload").onclick = () => {
-  fileInput.accept = ".glb,model/gltf-binary";
-  fileInput.value = "";
-  fileInput.click();
-};
 $("document-ifc-upload").onclick = () => {
   fileInput.accept = ".ifc,application/octet-stream";
   fileInput.value = "";
   fileInput.click();
 };
+async function deleteProjectDocument(asset, button) {
+  if (!projectId)
+    return setUploadStatus("Удаление доступно для файлов проекта, открытого из кабинета.", true);
+  const label = asset === "model" ? "основную 3D-модель" : "исходный IFC-файл";
+  if (!confirm(`Удалить ${label}?`)) return;
+  const password = window.RoomarkSessionPassword?.get() || prompt("Введите пароль для удаления файла:") || "";
+  if (!password) return;
+  button.disabled = true;
+  try {
+    const response = await fetchApi(`${API_URL}/api/projects/${encodeURIComponent(projectId)}/assets/${asset}`, {
+      method: "DELETE",
+      headers: { "X-Upload-Password": passwordHeader(password) },
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Не удалось удалить файл.");
+    window.RoomarkSessionPassword?.set(password);
+    button.closest(".document-row").remove();
+    setUploadStatus(asset === "model" ? "3D-модель удалена." : "IFC-файл удалён.");
+  } catch (error) {
+    button.disabled = false;
+    setUploadStatus(error.message, true);
+  }
+}
+$("document-glb-delete").onclick = (event) => deleteProjectDocument("model", event.currentTarget);
+$("document-ifc-delete").onclick = (event) => deleteProjectDocument("source", event.currentTarget);
 
 renderer.domElement.addEventListener("pointerdown", (event) => {
   const bounds = renderer.domElement.getBoundingClientRect();
@@ -709,8 +752,10 @@ function renderModelNotes() {
 }
 async function loadModelNotes() {
   try {
-    const response = await fetch(`${API_URL}/api/notes${projectQuery}`, { cache: "no-store" });
-    modelNotes = response.ok ? (await response.json()).filter((note) => note.status !== "resolved") : [];
+    const response = await fetchApi(`${API_URL}/api/notes${projectQuery}`, { cache: "no-store" });
+    modelNotes = response.ok
+      ? (await response.json()).filter((note) => note.status !== "resolved")
+      : [];
     if (!modelNotes.some((note) => note.id === activeModelNoteId)) activeModelNoteId = null;
     renderModelNotes();
   } catch {
@@ -785,6 +830,7 @@ document.addEventListener("pointerup", async () => {
   draggedModelPosition = null;
   if (!modelPinDragMoved || !note || !position) return;
   const password =
+    window.RoomarkSessionPassword?.get() ||
     $("pin-password").value ||
     document.getElementById("notes-password")?.value ||
     window.prompt("Введите пароль, чтобы сохранить новое положение пина:") ||
@@ -794,7 +840,7 @@ document.addEventListener("pointerup", async () => {
     return;
   }
   try {
-    const response = await fetch(`${API_URL}/api/notes/${note.id}${projectQuery}`, {
+    const response = await fetchApi(`${API_URL}/api/notes/${note.id}${projectQuery}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", "X-Upload-Password": passwordHeader(password) },
       body: JSON.stringify({ position, coordinateSpace: "model-world-v1" }),
@@ -849,7 +895,7 @@ const openDeletePinModal = (noteId) => {
   pinNameField.hidden = true;
   pinNameInput.required = false;
   pinSubmit.textContent = "Удалить пин";
-  pinPasswordInput.value = document.getElementById("notes-password")?.value || "";
+  pinPasswordInput.value = window.RoomarkSessionPassword?.get() || document.getElementById("notes-password")?.value || "";
   pinModalStatus.textContent = "";
   pinModal.showModal();
   requestAnimationFrame(() => pinPasswordInput.focus());
@@ -899,7 +945,7 @@ renderer.domElement.addEventListener("dblclick", async (event) => {
   pinNameField.hidden = false;
   pinNameInput.required = true;
   pinSubmit.textContent = "Добавить пин";
-  pinPasswordInput.value = document.getElementById("notes-password")?.value || "";
+  pinPasswordInput.value = window.RoomarkSessionPassword?.get() || document.getElementById("notes-password")?.value || "";
   pinModalStatus.textContent = "";
   pinModal.showModal();
   requestAnimationFrame(() => pinNameInput.focus());
@@ -921,7 +967,7 @@ pinForm.addEventListener("submit", async (event) => {
   try {
     if (pendingPinDeleteId) {
       const deletedId = pendingPinDeleteId,
-        response = await fetch(`${API_URL}/api/notes/${deletedId}${projectQuery}`, {
+        response = await fetchApi(`${API_URL}/api/notes/${deletedId}${projectQuery}`, {
           method: "DELETE",
           headers: { "X-Upload-Password": passwordHeader(password) },
         }),
@@ -934,7 +980,7 @@ pinForm.addEventListener("submit", async (event) => {
       closePinModal();
       return;
     }
-    const response = await fetch(`${API_URL}/api/notes${projectQuery}`, {
+    const response = await fetchApi(`${API_URL}/api/notes${projectQuery}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Upload-Password": passwordHeader(password) },
       body: JSON.stringify({
@@ -948,6 +994,7 @@ pinForm.addEventListener("submit", async (event) => {
     if (!response.ok) throw new Error(note.error || "Не удалось добавить пин.");
     const passwordInput = document.getElementById("notes-password");
     if (passwordInput && !passwordInput.value) passwordInput.value = password;
+    window.RoomarkSessionPassword?.set(password);
     modelNotes.push(note);
     activeModelNoteId = note.id;
     pinsVisible = true;
@@ -1091,11 +1138,31 @@ window.getWallMeshDebug = () => {
   return result;
 };
 const roomAllowsMesh = () => true;
+function applyPreferredVisibility() {
+  wallsVisible = true;
+  roofVisible = false;
+  house?.traverse((object) => {
+    if (!object.isMesh) return;
+    // Room/IFC analysis may provide better type and ceiling data after the first render.
+    delete object.userData.roomarkRoof;
+    if (isWallMesh(object)) object.visible = roomAllowsMesh(object);
+    if (isRoofMesh(object)) object.visible = false;
+  });
+  const wallsButton = $("walls-button"), roofButton = $("roof-button");
+  wallsButton?.classList.remove("active");
+  wallsButton?.setAttribute("aria-pressed", "false");
+  if (wallsButton) wallsButton.dataset.label = "Скрыть стены";
+  roofButton?.classList.add("active");
+  roofButton?.setAttribute("aria-pressed", "true");
+  if (roofButton) roofButton.dataset.label = "Показать крышу и потолки";
+}
 window.showAllRooms = () => {
   if (!house) return;
   clearRoomClipping();
   isolatedRoomId = null;
   selectedRoomId = null;
+  controls.minDistance = defaultMinDistance;
+  controls.maxDistance = defaultMaxDistance;
   house.traverse((object) => {
     if (object.isMesh)
       object.visible =
@@ -1106,6 +1173,7 @@ window.showAllRooms = () => {
   if (roomHighlight) roomHighlight.visible = false;
   roomHighlightFade = null;
   syncIsolateButton();
+  animate(originalPosition, originalTarget, 1000);
 };
 window.showRoom = (roomKey) => {
   const room = resolveRoom(roomKey);
@@ -1156,20 +1224,36 @@ window.focusRoom = (roomKey) => {
   if (!house) return;
   if (!room) return animate(originalPosition, originalTarget);
   if (!room.boundingBox) return animate(originalPosition, originalTarget);
-  const min = new THREE.Vector3(room.boundingBox.min.x, room.floorY, room.boundingBox.min.z),
-    max = new THREE.Vector3(room.boundingBox.max.x, room.ceilingY, room.boundingBox.max.z),
-    box = new THREE.Box3(min, max),
-    size = box.getSize(new THREE.Vector3()),
-    target = box.getCenter(new THREE.Vector3()),
-    fov = THREE.MathUtils.degToRad(camera.fov),
-    fitHeight = size.y / (2 * Math.tan(fov / 2)),
-    fitWidth = size.x / (2 * Math.tan(fov / 2) * camera.aspect),
-    distance = Math.max(fitHeight, fitWidth, size.z) * 1.45,
-    direction = new THREE.Vector3(1, 0, 1).normalize(),
-    position = target.clone().addScaledVector(direction, distance);
-  target.y = min.y + Math.min(0.65, size.y * 0.24);
-  position.y = min.y + Math.min(1.35, size.y * 0.5);
-  animate(position, target, 1300);
+  // Wait for the selected-room panel to establish the available viewport width.
+  requestAnimationFrame(() => {
+    resizeViewer();
+    const min = new THREE.Vector3(room.boundingBox.min.x, room.floorY, room.boundingBox.min.z),
+      max = new THREE.Vector3(room.boundingBox.max.x, room.ceilingY, room.boundingBox.max.z),
+      size = max.clone().sub(min),
+      target = min.clone().addScaledVector(size, 0.5),
+      direction = new THREE.Vector3(1, 1.4, 1).normalize(),
+      right = new THREE.Vector3().crossVectors(camera.up, direction).normalize(),
+      up = new THREE.Vector3().crossVectors(direction, right),
+      tanVertical = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2),
+      tanHorizontal = tanVertical * camera.aspect;
+    target.y = min.y + size.y * 0.3;
+    let distance = 0;
+    // Fit all room corners in this oblique view, including long and narrow rooms.
+    for (const x of [min.x, max.x]) {
+      for (const y of [min.y, max.y]) {
+        for (const z of [min.z, max.z]) {
+          const offset = new THREE.Vector3(x, y, z).sub(target),
+            depth = offset.dot(direction);
+          distance = Math.max(distance,
+            depth + Math.abs(offset.dot(right)) / (tanHorizontal * 0.85),
+            depth + Math.abs(offset.dot(up)) / (tanVertical * 0.85));
+        }
+      }
+    }
+    controls.minDistance = Math.min(defaultMinDistance, Math.max(0.3, size.length() * 0.12));
+    controls.maxDistance = Math.max(defaultMaxDistance, distance * 2);
+    animate(target.clone().addScaledVector(direction, distance), target, 1300);
+  });
 };
 window.highlightRoom = (roomKey) => {
   const room = resolveRoom(roomKey);
@@ -1208,11 +1292,17 @@ window.highlightRoom = (roomKey) => {
   };
   return true;
 };
-addEventListener("resize", () => {
-  camera.aspect = viewer.clientWidth / viewer.clientHeight;
+function resizeViewer() {
+  const width = viewer.clientWidth, height = viewer.clientHeight;
+  if (!width || !height) return;
+  camera.aspect = width / height;
   camera.updateProjectionMatrix();
-  renderer.setSize(viewer.clientWidth, viewer.clientHeight, false);
-});
+  renderer.setSize(width, height, false);
+}
+addEventListener("resize", resizeViewer);
+const viewerResizeObserver = new ResizeObserver(resizeViewer);
+viewerResizeObserver.observe(viewer);
+resizeViewer();
 function positionModelNotes() {
   if (!house || !pinsVisible) return;
   const card = noteLayer.querySelector(".model-note-popover"),
@@ -1220,7 +1310,7 @@ function positionModelNotes() {
     size = box.getSize(new THREE.Vector3());
   [...noteLayer.querySelectorAll("[data-model-note]")].forEach((pin, index) => {
     const note = modelNotes[index],
-      position = note?.position || { x: 0.5, y: 0.55, z: 0.5 },
+      position = (note === draggedModelNote && draggedModelPosition) || note?.position || { x: 0.5, y: 0.55, z: 0.5 },
       point = (note?.coordinateSpace === "model-world-v1"
         ? new THREE.Vector3(position.x, position.y, position.z)
         : new THREE.Vector3(
@@ -1228,7 +1318,8 @@ function positionModelNotes() {
             box.min.y + size.y * position.y,
             box.min.z + size.z * position.z
           )
-      ).project(camera);
+      );
+    point.project(camera);
     const visible = point.z > -1 && point.z < 1;
     pin.hidden = !visible;
     pin.style.left = `${(point.x + 1) * 50}%`;

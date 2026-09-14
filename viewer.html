@@ -2609,6 +2609,10 @@
     <link rel="stylesheet" href="./styles/spatial.css?v=1" />
     <link rel="stylesheet" href="./styles/viewer-reference.css?v=8" />
     <link rel="stylesheet" href="./styles/workspace-pages.css?v=3" />
+    <link rel="stylesheet" href="./styles/viewer-ux.css?v=4" />
+    <link rel="stylesheet" href="./styles/photos-page.css?v=3" />
+    <link rel="stylesheet" href="./styles/plan-notes.css?v=7" />
+    <link rel="stylesheet" href="./styles/renders-page.css?v=2" />
   </head>
   <body>
     <div id="app">
@@ -2620,9 +2624,9 @@
           ><span class="brand-project" id="header-project-name">ЖК Северный</span></a
         >
         <nav class="nav" aria-label="Режимы просмотра">
-          <button class="nav-button active" data-mode="3d"><span>Обзор</span></button>
+          <button class="nav-button active" data-mode="3d"><span>3D-модель</span></button>
           <button class="nav-button" data-mode="plan">
-            <svg class="icon"><path d="M4 4h16v16H4zM9 4v7h11M9 11v9" /></svg><span>План</span>
+            <svg class="icon"><path d="M4 4h16v16H4zM9 4v7h11M9 11v9" /></svg><span>Планы и замечания</span>
           </button>
           <button class="nav-button" data-mode="photos">
             <svg class="icon">
@@ -2643,13 +2647,23 @@
               <path d="M14 2v5h5M9 13h6M9 17h6" /></svg
             ><span>Документы</span>
           </button>
-          <button class="nav-button" data-mode="notes">
-            <svg class="icon">
-              <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" /></svg
-            ><span>Заметки</span>
-          </button>
         </nav>
         <div class="top-actions">
+          <button id="viewer-help-button" class="help-button" type="button">
+            <span aria-hidden="true">?</span> Помощь
+          </button>
+          <div class="session-password-control">
+            <button id="session-password-button" class="icon-button" type="button" title="Пароль действий" aria-label="Настроить пароль действий" aria-expanded="false">
+              <svg class="icon"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span class="session-password-dot" aria-hidden="true"></span>
+            </button>
+            <div id="session-password-popover" class="session-password-popover" hidden>
+              <div><strong>Пароль действий</strong><button type="button" data-close-session-password aria-label="Закрыть">×</button></div>
+              <p>Используется для загрузки, изменения и удаления до закрытия вкладки.</p>
+              <label><span>Пароль</span><input id="session-password-input" type="password" name="roomark-action-key" autocomplete="off" readonly data-form-type="other" data-lpignore="true" data-1p-ignore data-bwignore="true" placeholder="Введите пароль"></label>
+              <div class="session-password-actions"><button id="session-password-clear" class="secondary" type="button">Очистить</button><button id="session-password-save" class="primary" type="button">Сохранить</button></div>
+              <small id="session-password-status" aria-live="polite"></small>
+            </div>
+          </div>
           <button
             id="theme-button"
             class="icon-button"
@@ -2680,9 +2694,11 @@
       <aside class="tools" aria-label="Управление моделью">
         <button id="home-button" class="tool mobile-visible" data-label="Общий вид">
           <svg class="icon"><path d="m3 11 9-8 9 8M5 10v10h14V10" /></svg>
+          <span>Общий вид</span>
         </button>
         <button id="top-button" class="tool" data-label="Вид сверху">
           <svg class="icon"><path d="M12 20V4M6 10l6-6 6 6" /></svg>
+          <span>Сверху</span>
         </button>
         <button
           id="walls-button"
@@ -2692,6 +2708,7 @@
           aria-pressed="false"
         >
           <svg class="icon"><path d="M3 5h18v14H3zM3 10h18M8 5v5M16 10v5M8 15v4" /></svg>
+          <span>Стены</span>
         </button>
         <button
           id="roof-button"
@@ -2701,6 +2718,7 @@
           aria-pressed="false"
         >
           <svg class="icon"><path d="M3 11 12 4l9 7M5 10v3h14v-3M7 13v7M17 13v7" /></svg>
+          <span>Крыша</span>
         </button>
         <button
           id="isolate-button"
@@ -2714,33 +2732,45 @@
             <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" />
             <path d="M8 9h8v6H8z" />
           </svg>
+          <span>Изолировать</span>
         </button>
         <button id="pins-button" class="tool" data-label="Пины">
           <svg class="icon">
             <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
             <circle cx="12" cy="10" r="2" />
           </svg>
-        </button>
-        <button id="screenshot-button" class="tool" data-label="Скриншот">
-          <svg class="icon">
-            <path d="M4 7h3l2-2h6l2 2h3v12H4z" />
-            <circle cx="12" cy="13" r="4" />
-          </svg>
-        </button>
-        <button id="rotate-button" class="tool" data-label="Автооблёт">
-          <svg class="icon">
-            <path d="M20 7v5h-5M4 17v-5h5" />
-            <path d="M6.1 8A7 7 0 0 1 18.7 7M17.9 16A7 7 0 0 1 5.3 17" />
-          </svg>
+          <span>Замечания</span>
         </button>
       </aside>
 
       <aside id="rooms-sidebar" class="rooms-sidebar" aria-label="Помещения">
         <button id="rooms-mobile-button" class="rooms-mobile-button" type="button">Комнаты</button>
         <div class="sidebar-head">
-          <h2 class="sidebar-title">Помещения</h2>
+          <h2 class="sidebar-title">Помещения <span id="rooms-total"></span></h2>
           <button id="rooms-collapse" class="icon-button" title="Свернуть панель">‹</button>
         </div>
+        <label class="room-search">
+          <svg class="icon" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <input
+            id="room-search-input"
+            name="room-filter-query"
+            type="search"
+            autocomplete="new-password"
+            autocapitalize="none"
+            spellcheck="false"
+            readonly
+            data-form-type="other"
+            data-lpignore="true"
+            data-1p-ignore
+            data-bwignore="true"
+            placeholder="Найти помещение"
+          />
+        </label>
+        <div class="room-filters" aria-label="Фильтры помещений">
+          <button class="active" type="button" data-room-filter="all">Все</button>
+          <button type="button" data-room-filter="notes">С замечаниями</button>
+        </div>
+        <p id="room-search-empty" class="room-search-empty" hidden>Помещения не найдены</p>
         <div id="room-links" class="room-links"></div>
         <button id="add-room-button" class="add-room-button" type="button">
           + Добавить помещение
@@ -2762,14 +2792,38 @@
           alt="Кухня-гостиная"
         />
         <div class="project-meta">
-          <span id="selected-room-photos">0 фото</span
-          ><span id="selected-room-notes">0 замечаний</span><span>Материалы проекта</span>
+          <button id="selected-room-photos" type="button" data-mode="photos">0 фото</button
+          ><button id="selected-room-notes" type="button" data-mode="plan">0 замечаний</button
+          ><button type="button" data-mode="documents">Документы</button>
         </div>
         <button id="selected-room-open" class="open-room" type="button">
-          Открыть комнату&nbsp;&nbsp; →
+          Открыть материалы комнаты&nbsp;&nbsp; →
         </button>
-        <p class="updated">Обновлено сегодня</p>
+        <button id="copy-room-link" class="copy-room-link" type="button">Скопировать ссылку</button>
+        <p class="updated"><span aria-hidden="true">●</span> Все изменения сохранены</p>
       </article>
+
+      <button id="viewer-back-home" class="viewer-back-home" type="button" hidden>← Вернуться ко всему дому</button>
+
+      <aside id="viewer-controls-help" class="viewer-controls-help" aria-label="Как управлять моделью">
+        <div class="viewer-controls-help-head"><strong>Как управлять моделью</strong><button id="viewer-controls-help-close" type="button" aria-label="Закрыть подсказку">×</button></div>
+        <span class="mouse-left"><b>Вращение</b><small>Зажмите левую кнопку и двигайте мышью</small></span>
+        <span class="mouse-wheel"><b>Масштаб</b><small>Прокрутите колесо мыши</small></span>
+        <span class="mouse-right"><b>Перемещение</b><small>Зажмите правую кнопку и двигайте мышью</small></span>
+        <label class="viewer-controls-help-remember"><input id="viewer-controls-help-forever" type="checkbox"> Больше не показывать</label>
+      </aside>
+
+      <dialog id="viewer-help-dialog" class="viewer-help-dialog">
+        <form method="dialog">
+          <div class="drawer-head"><h2>Как пользоваться проектом</h2><button class="icon-button" value="cancel" aria-label="Закрыть">×</button></div>
+          <div class="help-steps">
+            <p><b>1. Выберите помещение</b><span>Нажмите на комнату слева — модель приблизится и покажет её материалы.</span></p>
+            <p><b>2. Управляйте моделью</b><span>Вращайте дом мышью, меняйте масштаб колесом и используйте подписанные инструменты справа.</span></p>
+            <p><b>3. Откройте материалы</b><span>Фото, планы, документы и замечания находятся в карточке выбранной комнаты.</span></p>
+          </div>
+          <button class="open-room" value="cancel">Понятно</button>
+        </form>
+      </dialog>
 
       <main id="room-page" class="room-page">
         <div class="room-page-inner">
@@ -2779,52 +2833,40 @@
           <div id="room-stats" class="room-stats"></div>
           <nav id="room-tabs" class="room-tabs">
             <button class="room-tab active" data-room-tab="overview">Обзор</button
-            ><button class="room-tab" data-room-tab="floorplan">Планировка</button
             ><button class="room-tab" data-room-tab="photos">Фото</button
             ><button class="room-tab" data-room-tab="renders">Рендеры</button
             ><button class="room-tab" data-room-tab="3d">3D</button
-            ><button class="room-tab" data-room-tab="documents">Документы</button
-            ><button class="room-tab" data-room-tab="notes">Заметки</button>
+            ><button class="room-tab" data-room-tab="documents">Документы</button>
           </nav>
           <section id="room-content"></section>
         </div>
       </main>
 
       <section id="panel-plan" class="mode-panel" data-panel="plan">
-        <div class="panel-inner">
-          <header class="panel-head">
-            <div>
-              <p class="eyebrow">Навигация по проекту</p>
-              <h2>Планировка</h2>
-              <p>
-                Общая планировка используется как фон для пинов. Ниже можно открыть отдельное
-                помещение.
-              </p>
-            </div>
+        <div class="plan-notes-shell">
+          <header class="plan-notes-head">
+            <div><p class="eyebrow">Проект / Планы и замечания</p><h2>План проекта</h2><p id="plan-project-summary">Все помещения · замечания на общем плане</p></div>
+            <div class="plan-head-actions"><button id="project-floorplan-upload" class="primary" type="button">+ Загрузить план</button></div>
           </header>
-          <article class="project-floorplan">
-            <div class="photo-toolbar">
-              <h3>Планировка всего проекта</h3>
-              <button id="project-floorplan-upload" class="primary" type="button">
-                Загрузить планировку
-              </button>
-            </div>
-            <div id="project-floorplan-view" class="project-floorplan-empty">
-              Общая планировка ещё не загружена.
-            </div>
-            <p id="project-floorplan-status" class="status" aria-live="polite"></p>
-          </article>
-          <div id="plan-rooms" class="room-grid"></div>
+          <div class="plan-notes-workspace">
+            <main class="plan-canvas-column">
+              <div class="plan-toolbar"><div class="plan-status-filters"><button class="active" type="button" data-plan-note-filter="all" aria-pressed="true">Все <span data-plan-count="all">0</span></button><button type="button" data-plan-note-filter="open" aria-pressed="false">Открытые <span data-plan-count="open">0</span></button><button type="button" data-plan-note-filter="resolved" aria-pressed="false">Исправленные <span data-plan-count="resolved">0</span></button></div></div>
+              <div id="pin-board" class="pin-board project-plan-board"><div class="workspace-empty"><h3>Загрузите общий план проекта</h3><p>После загрузки отмечайте замечания непосредственно на плане.</p></div></div>
+              <div class="plan-canvas-footer"><div class="plan-zoom"><button type="button" data-plan-zoom="out" aria-label="Уменьшить план">−</button><span id="plan-zoom-value">100%</span><button type="button" data-plan-zoom="in" aria-label="Увеличить план">+</button></div><button id="plan-download" class="secondary" type="button">Скачать план</button></div>
+              <p id="project-floorplan-status" class="status" aria-live="polite"></p>
+            </main>
+            <aside class="plan-notes-sidebar"><div class="plan-notes-sidebar-head"><div><h3>Замечания</h3><p id="plan-open-count">0 открытых</p></div><select id="plan-notes-sort" aria-label="Сортировка замечаний"><option>Сначала новые</option><option>Сначала старые</option></select></div><div id="notes-list" class="notes-list"></div><button id="plan-show-resolved" class="plan-show-resolved" type="button">Показать исправленные</button><form id="notes-form" class="plan-comment-form"><textarea id="note-text" maxlength="500" rows="1" placeholder="Опишите замечание…" aria-label="Текст замечания" required></textarea><button id="note-submit" class="primary" type="submit" aria-label="Добавить замечание">→</button></form><input id="notes-password" type="password" hidden><p id="notes-status" class="status" aria-live="polite"></p></aside>
+          </div>
         </div>
       </section>
       <section id="panel-photos" class="mode-panel" data-panel="photos">
-        <div class="panel-inner">
-          <header class="panel-head">
+        <div class="panel-inner photos-page-inner">
+          <header class="panel-head photos-page-head">
             <div>
               <p class="eyebrow">Ход работ</p>
-              <h2>Фотографии</h2>
+              <h2>Фото ремонта</h2>
               <p>
-                Сверху можно пролистать все фотографии проекта, снизу — выбрать конкретную комнату.
+                Следите за изменениями и обсуждайте результат отдельно по каждому помещению.
               </p>
             </div>
           </header>
@@ -2832,15 +2874,16 @@
         </div>
       </section>
       <section id="panel-renders" class="mode-panel" data-panel="renders">
-        <div class="panel-inner">
-          <header class="panel-head">
+        <div class="panel-inner renders-page-inner">
+          <header class="panel-head renders-page-head">
             <div>
-              <p class="eyebrow">Дизайн</p>
+              <p class="eyebrow">Проект / Дизайн интерьера</p>
               <h2>Рендеры</h2>
               <p>
-                Сверху можно пролистать все рендеры проекта, снизу — выбрать конкретную комнату.
+                Будущий облик вашего дома — в деталях и с разных ракурсов.
               </p>
             </div>
+            <button id="renders-choose-room" class="primary" type="button">+ Добавить рендеры</button>
           </header>
           <div id="renders-content"></div>
         </div>
@@ -2892,13 +2935,8 @@
                   ><small>GLB&nbsp; · &nbsp;модель для интерактивного просмотра</small>
                 </div>
                 <button class="document-open" type="button" data-mode="3d">Открыть</button
-                ><button
-                  id="document-glb-upload"
-                  class="document-more"
-                  type="button"
-                  aria-label="Заменить GLB-модель"
-                >
-                  •••
+                ><button id="document-glb-delete" class="document-delete" type="button" aria-label="Удалить GLB-модель" title="Удалить файл">
+                  <svg class="icon"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>
                 </button>
               </article>
               <article class="document-row">
@@ -2913,7 +2951,9 @@
                 </div>
                 <button id="document-ifc-upload" class="document-open" type="button">
                   Загрузить</button
-                ><span class="document-more muted" aria-hidden="true">•••</span>
+                ><button id="document-ifc-delete" class="document-delete" type="button" aria-label="Удалить IFC-файл" title="Удалить файл">
+                  <svg class="icon"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>
+                </button>
               </article>
             </div>
           </section>
@@ -2926,25 +2966,6 @@
           </aside>
         </div>
       </section>
-      <section id="panel-notes" class="mode-panel" data-panel="notes">
-        <div class="panel-inner">
-          <header class="panel-head">
-            <div>
-              <p class="eyebrow">Совместная проверка</p>
-              <h2>Замечания</h2>
-              <p>
-                Пины работают как комментарии в Figma: нажмите на маркер, чтобы открыть заметку.
-              </p>
-            </div>
-          </header>
-          <div class="notes-list-toolbar">
-            <p>Новые заметки добавляются двойным кликом по объекту в 3D.</p>
-            <input id="notes-password" type="password" placeholder="Пароль для изменения статуса" />
-          </div>
-          <div id="notes-list" class="notes-list"></div>
-          <p id="notes-status" class="status" aria-live="polite"></p>
-        </div>
-      </section>
 
       <aside id="settings-drawer" class="drawer">
         <div class="drawer-head">
@@ -2953,7 +2974,7 @@
         </div>
         <div class="setting-row">
           <span>Автоматический облёт</span
-          ><button class="secondary" onclick="document.getElementById('rotate-button').click()">
+          ><button id="rotate-button" class="secondary" type="button" aria-pressed="false">
             Включить
           </button>
         </div>
@@ -2987,11 +3008,6 @@
             <path d="m21 15-5-5L5 19" /></svg
           ><span>Фото</span>
         </button>
-        <button class="nav-button" data-mode="notes">
-          <svg class="icon">
-            <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" /></svg
-          ><span>Заметки</span>
-        </button>
         <button class="nav-button settings-toggle">
           <svg class="icon">
             <circle cx="12" cy="12" r="3" />
@@ -3012,6 +3028,30 @@
           ><button id="lightbox-next" class="lightbox-close" aria-label="Следующее фото">›</button
           ><button id="lightbox-close" class="lightbox-close" aria-label="Закрыть">×</button>
         </div>
+      </dialog>
+      <dialog id="room-media-dialog" class="room-media-dialog">
+        <section class="room-media-shell" aria-labelledby="room-media-title">
+          <header class="room-media-head">
+            <div><h2 id="room-media-title">Материалы комнаты</h2><p id="room-media-subtitle">Фото и документы</p></div>
+            <div><span id="room-media-counter">0 / 0</span><button id="room-media-close" type="button" aria-label="Закрыть">×</button></div>
+          </header>
+          <div id="room-media-stage" class="room-media-stage"></div>
+          <div id="room-media-thumbnails" class="room-media-thumbnails" aria-label="Материалы комнаты"></div>
+          <div class="room-media-actions">
+            <input id="room-media-files" type="file" multiple hidden>
+            <button id="room-media-upload" class="room-media-upload" type="button"><span aria-hidden="true">+</span> Загрузить</button>
+            <small id="room-media-types">JPEG, PNG, PDF</small>
+            <button id="room-media-delete" class="room-media-delete" type="button" aria-label="Удалить текущий материал" title="Удалить текущий материал">
+              <svg class="icon"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>
+            </button>
+          </div>
+          <p id="room-media-status" class="room-media-status" aria-live="polite"></p>
+          <section id="room-media-notes" class="room-media-notes">
+            <h3>Замечания</h3>
+            <div id="room-media-notes-list"></div>
+            <form id="room-media-note-form"><textarea id="room-media-note-text" rows="1" maxlength="500" placeholder="Добавить замечание…" required></textarea><button type="submit" aria-label="Добавить замечание">→</button></form>
+          </section>
+        </section>
       </dialog>
       <dialog id="pin-modal" class="pin-modal upload-modal">
         <form id="pin-form" class="pin-modal-form">
@@ -3173,16 +3213,16 @@
           error.textContent = message;
         }
       };
-      window.__viewerReadyTimer = setTimeout(
-        () =>
-          window.reportViewerBootError(
-            "Просмотрщик не завершил загрузку за 12 секунд. Проверьте WebGL и доступность файла модели."
-          ),
-        12000
-      );
+      // Real module and GLB errors are handled below and inside app.js. A fixed timeout
+      // produced false failures for large local models and intentionally is not used.
+      window.__viewerReadyTimer = null;
       window.addEventListener(
         "error",
         (event) => {
+          if (document.querySelector("#loading-screen")?.classList.contains("hidden")) {
+            console.error(event.error || event.message);
+            return;
+          }
           clearTimeout(window.__viewerReadyTimer);
           const source = event.filename
             ? ` (${event.filename.split("/").pop()}:${event.lineno || 0})`
@@ -3194,14 +3234,19 @@
         true
       );
       window.addEventListener("unhandledrejection", (event) => {
+        if (document.querySelector("#loading-screen")?.classList.contains("hidden")) {
+          console.error(event.reason);
+          return;
+        }
         clearTimeout(window.__viewerReadyTimer);
         window.reportViewerBootError(
           `Ошибка 3D-модуля: ${event.reason?.message || event.reason || "неизвестная ошибка"}`
         );
       });
     </script>
-    <script type="module" src="./scripts/app.js?v=25"></script>
-    <script src="./scripts/interface.js?v=11"></script>
-    <script src="./scripts/rooms.js?v=7"></script>
+    <script type="module" src="./scripts/app.js?v=44"></script>
+    <script src="./scripts/interface.js?v=23"></script>
+    <script src="./scripts/rooms.js?v=8"></script>
+    <script src="./scripts/viewer-ux.js?v=4"></script>
   </body>
 </html>

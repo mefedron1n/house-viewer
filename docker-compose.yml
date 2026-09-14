@@ -1,7 +1,11 @@
 services:
   ifc-api:
     build: ./server
-    ports: ["3001:3001"]
+    ports: ["127.0.0.1:3001:3001"]
+    mem_limit: 2g
+    cpus: 2
+    pids_limit: 128
+    security_opt: ["no-new-privileges:true"]
     env_file: ./server/.env
     environment:
       NODE_ENV: development

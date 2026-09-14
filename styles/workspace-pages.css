@@ -358,7 +358,8 @@ html.dark #panel-notes {
   font-size: 11px;
 }
 .document-open,
-.document-more {
+.document-more,
+.document-delete {
   min-height: 40px;
   color: var(--workspace-text);
   background: transparent;
@@ -368,7 +369,8 @@ html.dark #panel-notes {
   font-size: 12px;
 }
 .document-open:hover,
-.document-more:hover {
+.document-more:hover,
+.document-delete:hover {
   border-color: color-mix(in srgb, var(--workspace-accent) 45%, transparent);
   background: color-mix(in srgb, var(--workspace-accent) 7%, transparent);
 }
@@ -378,6 +380,16 @@ html.dark #panel-notes {
   font-weight: 800;
   letter-spacing: 2px;
 }
+.document-delete {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  place-items: center;
+  color: var(--workspace-accent);
+}
+.document-delete .icon { width: 19px; height: 19px; }
+.document-delete:hover { color: #261c08; border-color: var(--workspace-accent); background: var(--workspace-accent); }
 .document-more.muted {
   display: grid;
   place-items: center;

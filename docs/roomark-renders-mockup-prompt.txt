@@ -1,0 +1,16 @@
+Use case: ui-mockup.
+Style reference: an existing Roomark photo-page design with a near-black forest green canvas, a thin dark horizontal header, white serif headings, small grey sans-serif controls, dark rounded room-photo cards, thin grey-green borders and warm amber actions. Create a new sibling page design as a polished, high-resolution, straight-on desktop UI screenshot, landscape 1672x1100 approximately, no device frame. This is an image mockup, not source code.
+
+Transform the photo page into a much simpler Russian "Рендеры" page. Preserve this visual style's Roomark brand, slim dark header, typography, warm amber active underline, restrained near-black forest palette, elegant spacious proportions, fine low-contrast borders and softly rounded cards. Keep global nav labels "3D-модель", "Планы и замечания", "Фото", "Рендеры", "Документы", with only "Рендеры" active. Small help, theme, account controls in header like reference.
+
+Main centered content width about 1300px, generous margins. On the left, small overline "ДИЗАЙН ПРОЕКТА", large elegant white serif title "Рендеры", and muted subtitle "Визуализации будущего интерьера — всё в одном месте." On the right a single primary amber button "＋ Загрузить рендеры", and a small unobtrusive line directly underneath "PNG, JPEG или PDF".
+
+Below the heading, go DIRECTLY into a clean three-column gallery of six cards, two rows. Do NOT include statistics, search, filter chips, sorting, view toggles, progress bars, comments, issue counts, status labels, a carousel or a large separate hero image. The cards are the main content, similar to this visual style photo gallery, but show photorealistic finished architectural interior renderings instead of unfinished construction photos.
+Card 1: sunlit warm contemporary living room with beige sofa and oak, caption "Гостиная".
+Card 2: refined warm white and oak kitchen, caption "Кухня".
+Card 3: calm bedroom with warm grey linens, caption "Спальня".
+Card 4: elegant beige stone bathroom, caption "Ванная".
+Card 5: professional interior design PDF document thumbnail, with an interior image embedded in a clean white document sheet and a small PDF badge; caption "Дизайн-проект", secondary small text "PDF", action "Открыть PDF ↗".
+Card 6: tasteful empty upload card with fine dashed border, simple plus icon centered, caption "Добавить рендеры", small helper "Перетащите PNG, JPEG или PDF". It must look like a genuine upload target.
+
+For image cards use wide crisp thumbnails with consistent 16:10-ish ratio; underneath only room name left and small expand/open icon right, no other fields or actions. Image cards should feel quiet and spacious with content-rich interiors. All text must be accurately spelled Russian, crisp and legible. No random English text, no repeated toolbars, no annotations, no watermarks. Reproduce premium realistic application screenshot quality.

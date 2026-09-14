@@ -1,9 +1,13 @@
 (() => {
   const API_URL = window.HouseConfig?.apiBaseUrl || location.origin;
+  const fetchApi = (url, options = {}) => fetch(url, { credentials: "include", ...options });
   const projectId = new URLSearchParams(location.search).get("project");
   const projectQuery = projectId ? `?project=${encodeURIComponent(projectId)}` : "";
   const passwordHeader = (value) => `roomark-uri:${encodeURIComponent(value)}`;
+  const actionPassword = (message) => window.RoomarkSessionPassword?.get() || prompt(message) || "";
+  const rememberActionPassword = (value) => window.RoomarkSessionPassword?.set(value);
   const roomNames = Object.fromEntries(window.HOUSE_ROOMS.map(({ id, name }) => [id, name]));
+  const roomCatalog = Object.fromEntries(window.HOUSE_ROOMS.map((room) => [room.id, room]));
   const placeholder = "./images/room-placeholder.svg";
   let roomData = {},
     notes = [],
@@ -12,7 +16,15 @@
     projectFloorplanAspect = null,
     floorplanCalibration = null,
     calibrationImagePoints = [],
-    draftPlanPoint = null;
+    draftPlanPoint = null,
+    planNoteFilter = "all",
+    planRoomFilter = "all",
+    planZoom = 1,
+    noteActionPassword = "";
+  let photoQuery = "",
+    photoFilter = "all",
+    photoSort = "updated",
+    photoView = "cards";
   const absoluteUrl = (url) => (url ? `${API_URL}${url}` : null);
   const escapeHtml = (value) =>
     String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -40,21 +52,18 @@
   }
 
   function setMode(mode) {
-    if (window.openSelectedRoomSection?.(mode)) {
-      document
-        .querySelectorAll("[data-mode]")
-        .forEach((button) => button.classList.toggle("active", button.dataset.mode === mode));
-      document.querySelectorAll("[data-panel]").forEach((panel) => panel.classList.remove("active"));
-      document.querySelector(".project-card").hidden = true;
-      document.querySelector(".tools").hidden = true;
-      return;
-    }
+    document.documentElement.classList.toggle("plan-mode", mode === "plan");
+    if (mode !== "3d") window.closeHouseRoom?.();
     document
       .querySelectorAll("[data-mode]")
       .forEach((button) => button.classList.toggle("active", button.dataset.mode === mode));
     document
       .querySelectorAll("[data-panel]")
       .forEach((panel) => panel.classList.toggle("active", panel.dataset.panel === mode));
+    if (mode === "plan") {
+      document.getElementById("panel-plan")?.scrollTo(0, 0);
+      requestAnimationFrame(() => requestAnimationFrame(renderPlanWorkspace));
+    }
     document.querySelector(".project-card").hidden = mode !== "3d";
     document.querySelector(".tools").hidden = mode !== "3d";
     if (mode === "3d") window.dispatchEvent(new Event("resize"));
@@ -100,10 +109,12 @@
 
   function roomTile(key, room) {
     const image = absoluteUrl(room.floorplanUrl || room.renderUrls?.[0]);
-    return `<button class="room-tile" data-room-focus="${key}" type="button"><span class="room-visual">${image ? `<img src="${image}" alt="Планировка: ${roomNames[key]}">` : `<img class="room-type-icon" src="${roomIconUrl(key)}" alt="">`}</span><span class="room-copy"><strong>${roomNames[key]}</strong><small>Открыть страницу помещения</small></span></button>`;
+    return `<button class="room-tile" data-room-focus="${escapeHtml(key)}" type="button"><span class="room-visual">${image ? `<img src="${escapeHtml(image)}" alt="Планировка: ${escapeHtml(roomNames[key])}">` : `<img class="room-type-icon" src="${roomIconUrl(key)}" alt="">`}</span><span class="room-copy"><strong>${escapeHtml(roomNames[key])}</strong><small>Открыть страницу помещения</small></span></button>`;
   }
   function renderPlan() {
-    document.getElementById("plan-rooms").innerHTML = Object.entries(roomNames)
+    const container = document.getElementById("plan-rooms");
+    if (!container) return;
+    container.innerHTML = Object.entries(roomNames)
       .map(([key]) => roomTile(key, roomData[key] || {}))
       .join("");
   }
@@ -114,41 +125,30 @@
   function applyProjectFloorplan(url, calibration = floorplanCalibration) {
     projectFloorplanUrl = absoluteUrl(url);
     floorplanCalibration = window.RoomarkSpatial?.validCalibration(calibration) ? calibration : null;
-    const view = document.getElementById("project-floorplan-view"),
-      board = document.getElementById("pin-board");
+    const board = document.getElementById("pin-board");
     if (projectFloorplanUrl) {
-      view.className = "";
-      const image = document.createElement("img");
-      image.src = projectFloorplanUrl;
-      image.alt = "Планировка всего проекта";
-      view.replaceChildren(image);
       board.style.backgroundImage = `url("${projectFloorplanUrl}")`;
       board.classList.add("has-floorplan");
+      renderPlanWorkspace();
       const dimensions = new Image();
       dimensions.onload = () => {
         if (!dimensions.naturalWidth || !dimensions.naturalHeight) return;
         projectFloorplanAspect = dimensions.naturalWidth / dimensions.naturalHeight;
-        renderPins();
+        renderPlanWorkspace();
       };
       dimensions.src = projectFloorplanUrl;
-      calibrationState(
-        floorplanCalibration
-          ? "готова — метки используют координаты модели."
-          : "не выполнена. Перед добавлением меток привяжите план."
-      );
+      document.getElementById("project-floorplan-status").textContent = "Общий план проекта загружен.";
     } else {
-      view.className = "project-floorplan-empty";
-      view.textContent = "Общая планировка ещё не загружена.";
       board.style.backgroundImage = "";
       projectFloorplanAspect = null;
       board.classList.remove("has-floorplan");
       floorplanCalibration = null;
-      calibrationState("сначала загрузите планировку.");
+      renderPlanWorkspace();
     }
   }
   async function loadProjectFloorplan() {
     try {
-      const response = await fetch(`${API_URL}/api/project${projectQuery}`, { cache: "no-store" });
+      const response = await fetchApi(`${API_URL}/api/project${projectQuery}`, { cache: "no-store" });
       if (response.ok) {
         const manifest = await response.json();
         applyProjectFloorplan(manifest.floorplanUrl, manifest.calibration);
@@ -165,13 +165,13 @@
     const file = projectFloorplanInput.files[0],
       status = document.getElementById("project-floorplan-status");
     if (!file) return;
-    const password = prompt("Введите пароль для загрузки общей планировки:") || "";
+    const password = actionPassword("Введите пароль для загрузки общей планировки:");
     if (!password) return;
     status.textContent = "Загрузка…";
     const data = new FormData();
     data.append("file", file);
     try {
-      const response = await fetch(`${API_URL}/api/project/floorplan${projectQuery}`, {
+      const response = await fetchApi(`${API_URL}/api/project/floorplan${projectQuery}`, {
           method: "POST",
           headers: { "X-Upload-Password": passwordHeader(password) },
           body: data,
@@ -179,7 +179,7 @@
         result = await response.json();
       if (!response.ok) throw new Error(result.error || "Не удалось загрузить планировку.");
       applyProjectFloorplan(result.floorplanUrl, null);
-      status.textContent = "Планировка сохранена. Теперь привяжите её к 3D по трём точкам.";
+      status.textContent = "Общий план проекта сохранён. Теперь на нём можно ставить замечания.";
     } catch (error) {
       status.textContent = error.message;
     } finally {
@@ -208,9 +208,20 @@
       photo = room.photos?.[0]?.url,
       render = room.renderUrls?.[0],
       image = absoluteUrl(kind === "photos" ? photo : render);
-    return `<button class="room-tile" data-room-focus="${key}" data-room-tab-target="${kind}" type="button"><span class="room-visual">${image ? `<img src="${image}" alt="${kind === "photos" ? "Фото" : "Рендер"}: ${roomNames[key]}">` : `<img class="room-type-icon" src="${roomIconUrl(key)}" alt="">`}</span><span class="room-copy"><strong>${roomNames[key]}</strong><small>Открыть ${kind === "photos" ? "фотографии" : "рендеры"} комнаты</small></span></button>`;
+    return `<button class="room-tile" data-room-focus="${escapeHtml(key)}" data-room-tab-target="${kind}" type="button"><span class="room-visual">${image ? `<img src="${escapeHtml(image)}" alt="${kind === "photos" ? "Фото" : "Рендер"}: ${escapeHtml(roomNames[key])}">` : `<img class="room-type-icon" src="${roomIconUrl(key)}" alt="">`}</span><span class="room-copy"><strong>${escapeHtml(roomNames[key])}</strong><small>Открыть ${kind === "photos" ? "фотографии" : "рендеры"} комнаты</small></span></button>`;
+  }
+  function rendersMarkup() {
+    const items = galleryItems("renders"),
+      keys = Object.keys(roomNames),
+      withRenders = keys.filter((key) => roomData[key]?.renderUrls?.length).length;
+    const cards = keys.map((key) => {
+      const urls = roomData[key]?.renderUrls || [], image = absoluteUrl(urls[0]);
+      return `<article class="render-room-card"><button class="render-room-cover" type="button" data-room-focus="${escapeHtml(key)}" data-room-tab-target="renders" aria-label="Рендеры: ${escapeHtml(roomNames[key])}">${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(roomNames[key])}" loading="lazy"><span class="render-room-count">${urls.length} визуализаций</span>` : `<span class="render-room-empty"><img src="${roomIconUrl(key)}" alt=""><span>Рендеров пока нет</span></span>`}</button><div class="render-room-copy"><h3>${escapeHtml(roomNames[key])}</h3><p>${urls.length ? "Дизайн и ракурсы помещения" : "Добавьте первый взгляд на будущий интерьер"}</p><button type="button" data-room-focus="${escapeHtml(key)}" data-room-tab-target="renders">${urls.length ? "Смотреть рендеры" : "+ Добавить рендер"}<span aria-hidden="true">→</span></button></div></article>`;
+    }).join("");
+    return `<div class="renders-summary"><span><b>${items.length}</b> визуализаций</span><span><b>${withRenders}</b> помещений с рендерами</span><span><b>${keys.length}</b> помещений в проекте</span></div><section id="render-rooms" class="render-rooms" tabindex="-1"><header><div><p class="eyebrow">Каждая комната — своя история</p><h3>Рендеры по помещениям</h3></div><span>${keys.length} помещений</span></header><p id="renders-upload-hint" class="renders-upload-hint" hidden>Выберите помещение — загрузка и просмотр откроются в отдельном окне.</p><div class="render-room-grid">${cards || `<p class="renders-no-rooms">Добавьте помещение в проект, чтобы загрузить его визуализации.</p>`}</div></section>`;
   }
   function galleryMarkup(kind) {
+    if (kind === "renders") return rendersMarkup();
     const items = galleryItems(kind),
       index = items.length ? galleryIndexes[kind] % items.length : 0,
       item = items[index];
@@ -231,15 +242,80 @@
       .map((key) => mediaRoomTile(key, kind))
       .join("")}</div>`;
   }
+  const photoTimestamp = (photo) => {
+    const value = photo?.createdAt || photo?.date;
+    const time = value ? new Date(value).getTime() : 0;
+    return Number.isFinite(time) ? time : 0;
+  };
+  const relativePhotoDate = (timestamp) => {
+    if (!timestamp) return "ещё не обновлялось";
+    const days = Math.floor((Date.now() - timestamp) / 86400000);
+    if (days <= 0) return "обновлено сегодня";
+    if (days === 1) return "обновлено вчера";
+    if (days < 7) return `обновлено ${days} дн. назад`;
+    return `обновлено ${new Date(timestamp).toLocaleDateString("ru")}`;
+  };
+  const roomStorey = (key) => {
+    const value = String(roomCatalog[key]?.storeyId || roomCatalog[key]?.floor || "").toLowerCase();
+    const match = value.match(/(\d+)/);
+    return match ? `${match[1]} этаж` : "Помещения";
+  };
+  function photoRoomEntries() {
+    return Object.keys(roomNames).map((key) => {
+      const data = roomData[key] || {}, photos = data.photos || [], latest = [...photos].sort((a, b) => photoTimestamp(b) - photoTimestamp(a))[0];
+      const openNotes = notes.filter((note) => note.roomId === key && note.status !== "resolved").length;
+      const updated = photoTimestamp(latest), isNew = updated > Date.now() - 7 * 86400000;
+      return { key, data, photos, latest, openNotes, updated, isNew, storey: roomStorey(key) };
+    });
+  }
+  function photoRoomCard(item) {
+    const { key, photos, latest, openNotes, updated, isNew } = item;
+    const image = latest && !/\.pdf(?:$|\?)/i.test(latest.url || "") && absoluteUrl(latest.thumbnailUrl || latest.url),
+      hasPdfPreview = latest && /\.pdf(?:$|\?)/i.test(latest.url || "");
+    const type = latest?.type === "defect" ? "Замечание" : latest?.type === "completed" ? "Готовая работа" : latest?.type === "construction" ? "Ход строительства" : photos.length ? "Фото ремонта" : "Фотографий пока нет";
+    return `<article class="photo-room-card ${openNotes ? "has-notes" : ""}" data-photo-room-card data-photo-room-name="${escapeHtml(roomNames[key].toLowerCase())}">
+      <button class="photo-room-cover" type="button" data-room-focus="${key}" data-room-tab-target="photos">
+        ${image ? `<img src="${escapeHtml(image)}" alt="Последние фотографии: ${escapeHtml(roomNames[key])}" loading="lazy">` : `<span class="photo-room-empty">${hasPdfPreview ? `<span class="photo-pdf-icon">PDF</span><b>Последний материал — PDF</b>` : `<img src="${roomIconUrl(key)}" alt=""><b>Фотографий пока нет</b>`}</span>`}
+        <span class="photo-room-badges">${isNew ? `<i>Новое</i>` : ""}${openNotes ? `<i class="attention">${openNotes} ${openNotes === 1 ? "замечание" : "замечания"}</i>` : ""}</span>
+      </button>
+      <div class="photo-room-body"><div class="photo-room-title"><h3>${escapeHtml(roomNames[key])}</h3><span>${escapeHtml(type)}</span></div>
+        <div class="photo-room-meta"><span>${photos.length} фото</span><span>${relativePhotoDate(updated)}</span></div>
+        <button class="photo-room-open" type="button" data-room-focus="${key}" data-room-tab-target="photos">${photos.length ? "Открыть журнал →" : "Добавить первые фотографии"}</button>
+      </div></article>`;
+  }
+  function photoOverviewMarkup() {
+    const all = photoRoomEntries(), totalPhotos = all.reduce((sum, item) => sum + item.photos.length, 0), newPhotos = all.reduce((sum, item) => sum + (item.isNew ? item.photos.filter((photo) => photoTimestamp(photo) > Date.now() - 7 * 86400000).length : 0), 0), openNotes = all.reduce((sum, item) => sum + item.openNotes, 0);
+    let items = all.filter((item) => {
+      if (photoQuery && !roomNames[item.key].toLowerCase().includes(photoQuery)) return false;
+      if (photoFilter === "new" && !item.isNew) return false;
+      if (photoFilter === "notes" && !item.openNotes) return false;
+      if (photoFilter === "empty" && item.photos.length) return false;
+      return true;
+    });
+    items.sort((a, b) => photoSort === "name" ? roomNames[a.key].localeCompare(roomNames[b.key], "ru") : b.updated - a.updated);
+    const groups = Object.groupBy ? Object.groupBy(items, (item) => item.storey) : items.reduce((result, item) => ((result[item.storey] ||= []).push(item), result), {});
+    return `<section class="photo-summary" aria-label="Сводка по фотографиям"><span><b>${all.length}</b><small>помещений</small></span><span><b>${totalPhotos}</b><small>фотографий</small></span><span><b>${newPhotos}</b><small>новых за 7 дней</small></span><span class="attention"><b>${openNotes}</b><small>открытых замечаний</small></span></section>
+      <section class="photo-overview-toolbar"><label class="photo-search"><span aria-hidden="true">⌕</span><input id="photo-room-search" name="photo-room-filter-query" type="search" autocomplete="new-password" autocapitalize="none" spellcheck="false" readonly data-form-type="other" data-lpignore="true" data-1p-ignore data-bwignore="true" value="${escapeHtml(photoQuery)}" placeholder="Найти помещение"></label><div class="photo-filter-group">${[["all","Все"],["new","Новые фото"],["notes","С замечаниями"],["empty","Без фотографий"]].map(([value,label]) => `<button class="${photoFilter === value ? "active" : ""}" type="button" data-photo-filter="${value}">${label}</button>`).join("")}</div><select id="photo-sort" aria-label="Сортировка"><option value="updated" ${photoSort === "updated" ? "selected" : ""}>Сначала обновлённые</option><option value="name" ${photoSort === "name" ? "selected" : ""}>По названию</option></select><div class="photo-view-toggle"><button class="${photoView === "cards" ? "active" : ""}" type="button" data-photo-view="cards">Карточки</button><button class="${photoView === "list" ? "active" : ""}" type="button" data-photo-view="list">Список</button></div></section>
+      <div class="photo-room-groups ${photoView === "list" ? "list-view" : ""}">${items.length ? Object.entries(groups).map(([storey, entries]) => `<section class="photo-floor"><h3>${escapeHtml(storey)}</h3><div class="photo-room-grid">${entries.map(photoRoomCard).join("")}</div></section>`).join("") : `<div class="workspace-empty"><h3>Ничего не найдено</h3><p>Измените поиск или фильтры помещений.</p><button class="secondary" type="button" data-photo-reset>Сбросить фильтры</button></div>`}</div>`;
+  }
   function renderGalleries() {
-    document.getElementById("photos-content").innerHTML = galleryMarkup("photos");
+    document.getElementById("photos-content").innerHTML = photoOverviewMarkup();
     document.getElementById("renders-content").innerHTML = galleryMarkup("renders");
+    [0, 100, 350, 1000, 2000].forEach((delay) =>
+      setTimeout(() => {
+        const input = document.getElementById("photo-room-search");
+        if (input && document.activeElement !== input && input.value.includes("@")) {
+          input.value = "";
+          photoQuery = "";
+        }
+      }, delay)
+    );
   }
   async function loadRooms() {
     const entries = await Promise.all(
       Object.keys(roomNames).map(async (key) => {
         try {
-          const response = await fetch(`${API_URL}/api/rooms/${key}`, { cache: "no-store" });
+          const response = await fetchApi(`${API_URL}/api/rooms/${key}`, { cache: "no-store" });
           return [key, response.ok ? await response.json() : {}];
         } catch {
           return [key, {}];
@@ -250,8 +326,188 @@
     renderPlan();
     renderGalleries();
   }
+  const roomMediaDialog = document.getElementById("room-media-dialog"),
+    roomMediaFiles = document.getElementById("room-media-files");
+  let roomMediaKind = "photos",
+    roomMediaKey = null,
+    roomMediaIndex = 0;
+  function roomMediaItems() {
+    const data = roomData[roomMediaKey] || {};
+    if (roomMediaKind === "photos")
+      return (data.photos || []).map((photo, index) => ({
+        ...photo,
+        url: absoluteUrl(photo.url),
+        filename: decodeURIComponent(new URL(absoluteUrl(photo.url), location.href).pathname.split("/").pop()),
+        label: photo.comment || `Фото ${index + 1}`,
+        pdf: /\.pdf(?:$|\?)/i.test(photo.url),
+      }));
+    return (data.renderUrls || []).map((url, index) => ({
+      url: absoluteUrl(url),
+      filename: decodeURIComponent(new URL(absoluteUrl(url), location.href).pathname.split("/").pop()),
+      label: `Рендер ${index + 1}`,
+      pdf: false,
+    }));
+  }
+  function renderRoomMediaNotes() {
+    const section = document.getElementById("room-media-notes"),
+      list = document.getElementById("room-media-notes-list");
+    section.hidden = roomMediaKind !== "photos";
+    if (section.hidden) return;
+    const roomNotes = notes.filter((note) => note.roomId === roomMediaKey);
+    list.innerHTML = roomNotes.length
+      ? roomNotes.map((note, index) => `<article class="room-media-note ${note.status === "resolved" ? "resolved" : ""}"><span>${index + 1}</span><div><strong>Изменения</strong><p>${escapeHtml(note.text)}</p><small>${escapeHtml(noteDate(note.createdAt))}${note.status === "resolved" ? " · исправлено" : ""}</small></div></article>`).join("")
+      : `<p class="room-media-notes-empty">В этой комнате замечаний пока нет.</p>`;
+  }
+  function renderRoomMedia() {
+    if (!roomMediaKey) return;
+    const items = roomMediaItems(),
+      stage = document.getElementById("room-media-stage"),
+      thumbnails = document.getElementById("room-media-thumbnails");
+    roomMediaIndex = items.length ? Math.max(0, Math.min(roomMediaIndex, items.length - 1)) : 0;
+    const item = items[roomMediaIndex];
+    document.getElementById("room-media-title").textContent = roomNames[roomMediaKey] || "Помещение";
+    document.getElementById("room-media-subtitle").textContent = roomMediaKind === "photos" ? "Фото и документы" : "Рендеры";
+    document.getElementById("room-media-counter").textContent = items.length ? `${roomMediaIndex + 1} / ${items.length}` : "0 / 0";
+    document.getElementById("room-media-types").textContent = roomMediaKind === "photos" ? "JPEG, PNG, PDF" : "JPEG, PNG";
+    document.getElementById("room-media-delete").hidden = !item;
+    stage.innerHTML = item
+      ? `${item.pdf ? `<iframe src="${escapeHtml(item.url)}" title="${escapeHtml(item.label)}"></iframe>` : `<img src="${escapeHtml(item.url)}" alt="${escapeHtml(item.label)}">`}<button class="room-media-arrow previous" type="button" data-room-media-step="-1" aria-label="Предыдущий материал" ${items.length < 2 ? "disabled" : ""}>‹</button><button class="room-media-arrow next" type="button" data-room-media-step="1" aria-label="Следующий материал" ${items.length < 2 ? "disabled" : ""}>›</button>`
+      : `<div class="room-media-empty"><span>${roomMediaKind === "photos" ? "▧" : "◇"}</span><strong>${roomMediaKind === "photos" ? "Фотографий пока нет" : "Рендеров пока нет"}</strong><p>Загрузите первый материал для этого помещения.</p></div>`;
+    thumbnails.innerHTML = items.map((entry, index) => `<button class="${index === roomMediaIndex ? "active" : ""}" type="button" data-room-media-index="${index}" aria-label="${escapeHtml(entry.label)}" aria-pressed="${index === roomMediaIndex}">${entry.pdf ? `<span>PDF</span>` : `<img src="${escapeHtml(entry.url)}" alt="" loading="lazy">`}</button>`).join("");
+    renderRoomMediaNotes();
+  }
+  function openRoomMedia(key, kind) {
+    if (!roomNames[key]) return;
+    roomMediaKey = key;
+    roomMediaKind = kind === "renders" ? "renders" : "photos";
+    roomMediaIndex = 0;
+    document.getElementById("room-media-status").textContent = "";
+    roomMediaFiles.accept = roomMediaKind === "photos" ? "image/jpeg,image/png,application/pdf,.pdf" : "image/jpeg,image/png";
+    renderRoomMedia();
+    roomMediaDialog.showModal();
+  }
+  roomMediaDialog.addEventListener("click", (event) => {
+    if (event.target === roomMediaDialog) roomMediaDialog.close();
+    const step = event.target.closest("[data-room-media-step]"),
+      selected = event.target.closest("[data-room-media-index]"),
+      items = roomMediaItems();
+    if (step && items.length) {
+      roomMediaIndex = (roomMediaIndex + Number(step.dataset.roomMediaStep) + items.length) % items.length;
+      renderRoomMedia();
+    } else if (selected) {
+      roomMediaIndex = Number(selected.dataset.roomMediaIndex);
+      renderRoomMedia();
+    }
+  });
+  document.getElementById("room-media-close").addEventListener("click", () => roomMediaDialog.close());
+  document.getElementById("room-media-upload").addEventListener("click", () => {
+    roomMediaFiles.value = "";
+    roomMediaFiles.click();
+  });
+  roomMediaFiles.addEventListener("change", async () => {
+    const files = [...roomMediaFiles.files],
+      status = document.getElementById("room-media-status"),
+      password = actionPassword(`Введите пароль для загрузки ${roomMediaKind === "photos" ? "фотографий" : "рендеров"}:`);
+    if (!files.length || !password) return;
+    status.textContent = "Загружаем материалы…";
+    try {
+      for (const file of files) {
+        const data = new FormData();
+        data.append("file", file);
+        if (roomMediaKind === "photos") {
+          data.append("type", "other");
+          data.append("date", new Date().toISOString().slice(0, 10));
+          data.append("comment", file.name.replace(/\.[^.]+$/, ""));
+        }
+        const response = await fetchApi(`${API_URL}/api/rooms/${encodeURIComponent(roomMediaKey)}/assets/${roomMediaKind === "photos" ? "photo" : "render"}`, {
+          method: "POST",
+          headers: { "X-Upload-Password": passwordHeader(password) },
+          body: data,
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || `Не удалось загрузить ${file.name}.`);
+        roomData[roomMediaKey] = result;
+      }
+      rememberActionPassword(password);
+      roomMediaIndex = Math.max(0, roomMediaItems().length - 1);
+      renderGalleries();
+      renderRoomMedia();
+      status.textContent = "Материалы загружены.";
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  });
+  document.getElementById("room-media-delete").addEventListener("click", async () => {
+    const item = roomMediaItems()[roomMediaIndex];
+    if (!item || !confirm(`Удалить «${item.label}»?`)) return;
+    const password = actionPassword("Введите пароль для удаления материала:");
+    if (!password) return;
+    const status = document.getElementById("room-media-status");
+    try {
+      const response = await fetchApi(`${API_URL}/api/rooms/${encodeURIComponent(roomMediaKey)}/assets/${encodeURIComponent(item.filename)}`, {
+        method: "DELETE",
+        headers: { "X-Upload-Password": passwordHeader(password) },
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Не удалось удалить материал.");
+      roomData[roomMediaKey] = result;
+      rememberActionPassword(password);
+      roomMediaIndex = Math.max(0, roomMediaIndex - 1);
+      renderGalleries();
+      renderRoomMedia();
+      status.textContent = "Материал удалён.";
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  });
+  document.getElementById("room-media-note-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const input = document.getElementById("room-media-note-text"),
+      status = document.getElementById("room-media-status"),
+      password = noteActionPassword || actionPassword("Введите пароль, чтобы добавить замечание:");
+    if (!password || !input.value.trim()) return;
+    try {
+      const response = await fetchApi(`${API_URL}/api/notes${projectQuery}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Upload-Password": passwordHeader(password) },
+        body: JSON.stringify({ text: input.value.trim(), roomId: roomMediaKey, position: { x: .5, y: .5, z: .5 }, coordinateSpace: "legacy-normalized-v1" }),
+      });
+      const note = await response.json();
+      if (!response.ok) throw new Error(note.error || "Не удалось добавить замечание.");
+      noteActionPassword = password;
+      rememberActionPassword(password);
+      notes.push(note);
+      input.value = "";
+      renderRoomMediaNotes();
+      document.getElementById("photos-content").innerHTML = photoOverviewMarkup();
+      window.dispatchEvent(new Event("notes-changed"));
+      status.textContent = "Замечание добавлено и связано с комнатой.";
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  });
   document.addEventListener("click", (event) => {
+    const photoFilterButton = event.target.closest("[data-photo-filter]");
+    if (photoFilterButton) {
+      photoFilter = photoFilterButton.dataset.photoFilter;
+      document.getElementById("photos-content").innerHTML = photoOverviewMarkup();
+      return;
+    }
+    const photoViewButton = event.target.closest("[data-photo-view]");
+    if (photoViewButton) {
+      photoView = photoViewButton.dataset.photoView;
+      document.getElementById("photos-content").innerHTML = photoOverviewMarkup();
+      return;
+    }
+    if (event.target.closest("[data-photo-reset]")) {
+      photoQuery = "";
+      photoFilter = "all";
+      document.getElementById("photos-content").innerHTML = photoOverviewMarkup();
+      return;
+    }
     const tile = event.target.closest("[data-room-focus]");
+    if (tile && ["photos", "renders"].includes(tile.dataset.roomTabTarget))
+      return openRoomMedia(tile.dataset.roomFocus, tile.dataset.roomTabTarget);
     if (tile) return window.openHouseRoom?.(tile.dataset.roomFocus, tile.dataset.roomTabTarget);
     const gallery = event.target.closest("[data-gallery-kind]");
     if (!gallery) return;
@@ -265,6 +521,46 @@
     else if (selected) galleryIndexes[kind] = Number(selected.dataset.galleryIndex);
     else return;
     document.getElementById(`${kind}-content`).innerHTML = galleryMarkup(kind);
+  });
+  document.getElementById("photos-content").addEventListener("input", (event) => {
+    if (event.target.id !== "photo-room-search") return;
+    if (event.target.value.includes("@")) {
+      event.target.value = "";
+      photoQuery = "";
+      return;
+    }
+    photoQuery = event.target.value.trim().toLowerCase();
+    const position = event.target.selectionStart;
+    document.getElementById("photos-content").innerHTML = photoOverviewMarkup();
+    const next = document.getElementById("photo-room-search");
+    next.focus();
+    next.setSelectionRange(position, position);
+  });
+  const unlockPhotoSearch = (event) => {
+    if (event.target.id !== "photo-room-search") return;
+    event.target.readOnly = false;
+    if (event.target.value.includes("@")) {
+      event.target.value = "";
+      photoQuery = "";
+    }
+  };
+  document.getElementById("photos-content").addEventListener("pointerdown", unlockPhotoSearch);
+  document.getElementById("photos-content").addEventListener("keydown", unlockPhotoSearch);
+  document.getElementById("photos-content").addEventListener("change", (event) => {
+    if (event.target.id !== "photo-sort") return;
+    photoSort = event.target.value;
+    document.getElementById("photos-content").innerHTML = photoOverviewMarkup();
+  });
+  function chooseRenderRoom() {
+    const rooms = document.getElementById("render-rooms");
+    if (!rooms) return;
+    document.getElementById("renders-upload-hint").hidden = false;
+    rooms.focus({ preventScroll: true });
+    rooms.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" });
+  }
+  document.getElementById("renders-choose-room").addEventListener("click", chooseRenderRoom);
+  document.getElementById("renders-content").addEventListener("click", (event) => {
+    if (event.target.closest("[data-choose-render-room]")) chooseRenderRoom();
   });
 
   const lightbox = document.getElementById("lightbox"),
@@ -374,6 +670,94 @@
       z: world.z,
     };
   }
+  function planImageRect(board) {
+    const width = board.clientWidth, height = board.clientHeight;
+    if (!projectFloorplanAspect || !width || !height) return { left: 0, top: 0, width, height };
+    let rect;
+    // The uploaded plan may be an export with large margins. Fill the canvas like the reference,
+    // cropping those margins instead of shrinking the actual drawing into the centre.
+    if (width / height > projectFloorplanAspect) {
+      const imageHeight = width / projectFloorplanAspect;
+      rect = { left: 0, top: (height - imageHeight) / 2, width, height: imageHeight };
+    } else {
+      const imageWidth = height * projectFloorplanAspect;
+      rect = { left: (width - imageWidth) / 2, top: 0, width: imageWidth, height };
+    }
+    const scaledWidth = rect.width * planZoom, scaledHeight = rect.height * planZoom;
+    return { left: (width - scaledWidth) / 2, top: (height - scaledHeight) / 2, width: scaledWidth, height: scaledHeight };
+  }
+  function visiblePlanNotes() {
+    return notes.filter((note) => {
+      const resolved = note.status === "resolved";
+      return !(planNoteFilter === "open" && resolved) && !(planNoteFilter === "resolved" && !resolved) &&
+        (planRoomFilter === "all" || note.roomId === planRoomFilter);
+    });
+  }
+  function notePlanPoint(note) {
+    if (note.coordinateSpace !== "model-world-v1")
+      return { x: Number(note.position?.x ?? .5), y: 1 - Number(note.position?.z ?? .5) };
+    if (floorplanCalibration && window.RoomarkSpatial?.worldToImage) {
+      const mapped = window.RoomarkSpatial.worldToImage(floorplanCalibration.matrix, note.position);
+      if (mapped) return { x: mapped.x, y: mapped.z };
+    }
+    const bounds = window.RoomarkSpatialContext?.bounds,
+      width = Number(bounds?.max?.x) - Number(bounds?.min?.x),
+      depth = Number(bounds?.max?.z) - Number(bounds?.min?.z);
+    if (width > 0 && depth > 0)
+      return {
+        x: (Number(note.position?.x) - Number(bounds.min.x)) / width,
+        y: 1 - (Number(note.position?.z) - Number(bounds.min.z)) / depth,
+      };
+    return { x: .5, y: .5 };
+  }
+  function positionFromPlanPoint(point, note) {
+    if (note?.coordinateSpace !== "model-world-v1")
+      return { position: { x: point.x, y: note?.position?.y ?? .5, z: 1 - point.y }, coordinateSpace: "legacy-normalized-v1" };
+    if (floorplanCalibration && window.RoomarkSpatial?.imageToWorld) {
+      const mapped = window.RoomarkSpatial.imageToWorld(floorplanCalibration.matrix, { x: point.x, z: point.y });
+      if (mapped) return { position: { x: mapped.x, y: note.position?.y ?? floorplanCalibration.floorY ?? 0, z: mapped.z }, coordinateSpace: "model-world-v1" };
+    }
+    const bounds = window.RoomarkSpatialContext?.bounds,
+      width = Number(bounds?.max?.x) - Number(bounds?.min?.x),
+      depth = Number(bounds?.max?.z) - Number(bounds?.min?.z);
+    if (width > 0 && depth > 0)
+      return {
+        position: {
+          x: Number(bounds.min.x) + point.x * width,
+          y: note.position?.y ?? Number(bounds.floorY || 0),
+          z: Number(bounds.min.z) + (1 - point.y) * depth,
+        },
+        coordinateSpace: "model-world-v1",
+      };
+    return { position: { x: point.x, y: .5, z: 1 - point.y }, coordinateSpace: "legacy-normalized-v1" };
+  }
+  function renderPlanWorkspace() {
+    const board = document.getElementById("pin-board");
+    if (!board) return;
+    if (!projectFloorplanUrl) {
+      board.innerHTML = `<div class="workspace-empty"><span class="workspace-empty-icon">⌖</span><h3>Загрузите общий план проекта</h3><p>Один план для всего объекта — без отдельных планировок комнат.</p></div>`;
+      return;
+    }
+    const image = planImageRect(board);
+    if (image.width > 0 && image.height > 0)
+      board.style.backgroundSize = `${image.width}px ${image.height}px`;
+    else board.style.removeProperty("background-size");
+    board.innerHTML = visiblePlanNotes().map((note) => {
+      let x = Number(note.position?.x ?? .5), y = 1 - Number(note.position?.z ?? .5);
+      if (note.coordinateSpace === "model-world-v1" && floorplanCalibration) {
+        const mapped = window.RoomarkSpatial?.worldToImage(floorplanCalibration.matrix, note.position);
+        if (mapped) { x = mapped.x; y = mapped.z; }
+      }
+      return `<button class="note-pin ${note.status === "resolved" ? "resolved" : ""} ${activeNoteId === note.id ? "active" : ""}" type="button" data-note-id="${note.id}" style="left:${image.left + x * image.width}px;top:${image.top + y * image.height}px"><span>${visiblePlanNotes().indexOf(note) + 1}</span></button>`;
+    }).join("");
+    if (draftPlanPoint) {
+      const marker = document.createElement("span");
+      marker.className = "draft-note-pin"; marker.textContent = "+";
+      marker.style.left = `${image.left + draftPlanPoint.x * image.width}px`;
+      marker.style.top = `${image.top + draftPlanPoint.y * image.height}px`;
+      board.append(marker);
+    }
+  }
   function noteDate(value) {
     try {
       return new Intl.DateTimeFormat("ru", {
@@ -428,7 +812,7 @@
   async function loadNotes() {
     const status = document.getElementById("notes-status");
     try {
-      const response = await fetch(`${API_URL}/api/notes${projectQuery}`, { cache: "no-store" });
+      const response = await fetchApi(`${API_URL}/api/notes${projectQuery}`, { cache: "no-store" });
       if (!response.ok) throw new Error();
       notes = await response.json();
       renderPins();
@@ -501,7 +885,7 @@
       modelKey: window.RoomarkSpatialContext.modelKey,
     };
     try {
-      const response = await fetch(`${API_URL}/api/project/floorplan-calibration${projectQuery}`, {
+      const response = await fetchApi(`${API_URL}/api/project/floorplan-calibration${projectQuery}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", "X-Upload-Password": passwordHeader(password) },
         body: JSON.stringify(calibration),
@@ -515,7 +899,7 @@
           const position = worldPositionFromImage(
             { x: Number(note.position?.x ?? 0.5), z: 1 - Number(note.position?.z ?? 0.5) }
           );
-          const migration = await fetch(`${API_URL}/api/notes/${note.id}${projectQuery}`, {
+          const migration = await fetchApi(`${API_URL}/api/notes/${note.id}${projectQuery}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json", "X-Upload-Password": passwordHeader(password) },
             body: JSON.stringify({ position, coordinateSpace: "model-world-v1" }),
@@ -558,7 +942,7 @@
           "";
       if (!password) return;
       try {
-        const response = await fetch(`${API_URL}/api/notes/${remove.dataset.deleteNote}${projectQuery}`, {
+        const response = await fetchApi(`${API_URL}/api/notes/${remove.dataset.deleteNote}${projectQuery}`, {
           method: "DELETE",
           headers: { "X-Upload-Password": passwordHeader(password) },
         });
@@ -645,7 +1029,7 @@
       },
       coordinateSpace = worldPosition ? "model-world-v1" : "legacy-normalized-v1";
     try {
-      const response = await fetch(`${API_URL}/api/notes/${pin.dataset.noteId}${projectQuery}`, {
+      const response = await fetchApi(`${API_URL}/api/notes/${pin.dataset.noteId}${projectQuery}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", "X-Upload-Password": passwordHeader(password) },
         body: JSON.stringify({ position, coordinateSpace }),
@@ -690,7 +1074,7 @@
     submit.disabled = true;
     status.textContent = "Сохраняем замечание…";
     try {
-      const response = await fetch(`${API_URL}/api/notes${projectQuery}`, {
+      const response = await fetchApi(`${API_URL}/api/notes${projectQuery}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -720,6 +1104,46 @@
   });
 
   }
+  function planImageRect(board) {
+    const width = board.clientWidth, height = board.clientHeight;
+    if (!projectFloorplanAspect || !width || !height) return { left: 0, top: 0, width, height };
+    const imageWidth = Math.min(width, height * projectFloorplanAspect) * planZoom,
+      imageHeight = imageWidth / projectFloorplanAspect;
+    return { left: (width - imageWidth) / 2, top: (height - imageHeight) / 2, width: imageWidth, height: imageHeight };
+  }
+  function visiblePlanNotes() {
+    return notes.filter((note) => {
+      if (note.coordinateSpace === "model-world-v1") return false;
+      const resolved = note.status === "resolved";
+      return !(planNoteFilter === "open" && resolved) && !(planNoteFilter === "resolved" && !resolved) &&
+        (planRoomFilter === "all" || note.roomId === planRoomFilter);
+    });
+  }
+  function renderPlanWorkspace() {
+    const board = document.getElementById("pin-board");
+    if (!board) return;
+    if (!projectFloorplanUrl) {
+      board.innerHTML = `<div class="workspace-empty"><span class="workspace-empty-icon">⌖</span><h3>Загрузите общий план проекта</h3><p>Один план для всего объекта — без отдельных планировок комнат.</p></div>`;
+      return;
+    }
+    const image = planImageRect(board);
+    if (image.width > 0 && image.height > 0)
+      board.style.backgroundSize = `${image.width}px ${image.height}px`;
+    else board.style.removeProperty("background-size");
+    const shown = visiblePlanNotes();
+    board.innerHTML = shown.map((note) => {
+      const { x, y } = notePlanPoint(note);
+      return `<button class="note-pin ${note.status === "resolved" ? "resolved" : ""} ${activeNoteId === note.id ? "active" : ""}" type="button" data-note-id="${note.id}" style="left:${image.left + x * image.width}px;top:${image.top + y * image.height}px"><span>${shown.indexOf(note) + 1}</span></button>`;
+    }).join("");
+    if (draftPlanPoint) {
+      const marker = document.createElement("span");
+      marker.className = "draft-note-pin";
+      marker.textContent = "+";
+      marker.style.left = `${image.left + draftPlanPoint.x * image.width}px`;
+      marker.style.top = `${image.top + draftPlanPoint.y * image.height}px`;
+      board.append(marker);
+    }
+  }
   function noteDate(value) {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? "" : date.toLocaleString("ru");
@@ -727,19 +1151,37 @@
   function renderNotesList() {
     const list = document.getElementById("notes-list");
     if (!list) return;
-    list.innerHTML = notes.length
-      ? notes.map((note, index) => {
+    const shown = visiblePlanNotes();
+    list.innerHTML = shown.length
+      ? shown.map((note) => {
           const resolved = note.status === "resolved";
-          return `<label class="notes-list-item ${resolved ? "resolved" : ""}"><input type="checkbox" data-note-status="${note.id}" ${resolved ? "checked" : ""}><span><p>${escapeHtml(note.text)}</p><small>Пин ${index + 1} · ${noteDate(note.createdAt)}</small></span><small>${resolved ? "Выполнено" : "Открыто"}</small></label>`;
+          return `<article class="plan-note-card ${resolved ? "resolved" : ""} ${activeNoteId === note.id ? "active" : ""}" data-open-note="${note.id}"><div class="plan-note-card-top"><span class="plan-note-number">${shown.indexOf(note) + 1}</span><strong>Изменения</strong>${note.roomId && roomNames[note.roomId] ? `<small class="plan-note-room">${escapeHtml(roomNames[note.roomId])}</small>` : ""}<span class="note-state">${resolved ? "Исправлено" : "Открыто"}</span><button class="plan-note-delete" type="button" data-delete-plan-note="${note.id}" aria-label="Удалить замечание" title="Удалить замечание">×</button></div><p>${escapeHtml(note.text)}</p><footer><small>${noteDate(note.createdAt)}</small><label class="note-resolved-toggle"><input type="checkbox" data-note-status="${note.id}" ${resolved ? "checked" : ""}> <span>Готово</span></label></footer></article>`;
         }).join("")
-      : `<div class="notes-list-empty">Заметок пока нет. Добавьте пин двойным кликом по модели в режиме 3D.</div>`;
+      : `<div class="notes-list-empty">По выбранному фильтру замечаний нет.</div>`;
+    const count = notes.filter((note) => note.status !== "resolved").length;
+    document.getElementById("plan-open-count").textContent = `${count} открытых`;
+    const planNotes = notes,
+      resolvedCount = planNotes.length - count;
+    document.getElementById("plan-project-summary").textContent = `${Object.keys(roomNames).length} помещений · ${planNotes.length} замечаний на общем плане`;
+    document.querySelectorAll("[data-plan-count]").forEach((label) => {
+      label.textContent = { all: planNotes.length, open: count, resolved: resolvedCount }[label.dataset.planCount];
+    });
+    document.querySelectorAll("[data-plan-note-filter]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.planNoteFilter === planNoteFilter);
+      button.setAttribute("aria-pressed", String(button.dataset.planNoteFilter === planNoteFilter));
+    });
+    document.getElementById("plan-show-resolved").textContent = planNoteFilter === "resolved"
+      ? "Показать все замечания" : `Показать исправленные (${resolvedCount})`;
+
+    renderPlanWorkspace();
   }
   async function loadNotesList() {
     try {
-      const response = await fetch(`${API_URL}/api/notes${projectQuery}`, { cache: "no-store" });
+      const response = await fetchApi(`${API_URL}/api/notes${projectQuery}`, { cache: "no-store" });
       if (!response.ok) throw new Error();
       notes = await response.json();
       renderNotesList();
+      if (Object.keys(roomData).length) document.getElementById("photos-content").innerHTML = photoOverviewMarkup();
     } catch {
       document.getElementById("notes-status").textContent = "Не удалось загрузить заметки.";
     }
@@ -747,8 +1189,7 @@
   document.getElementById("notes-list")?.addEventListener("change", async (event) => {
     const checkbox = event.target.closest("[data-note-status]");
     if (!checkbox) return;
-    const passwordInput = document.getElementById("notes-password"),
-      password = passwordInput.value || prompt("Введите пароль, чтобы изменить статус заметки:") || "",
+    const password = noteActionPassword || actionPassword("Введите пароль, чтобы изменить статус замечания:"),
       status = document.getElementById("notes-status");
     if (!password) {
       checkbox.checked = !checkbox.checked;
@@ -756,7 +1197,7 @@
     }
     checkbox.disabled = true;
     try {
-      const response = await fetch(`${API_URL}/api/notes/${checkbox.dataset.noteStatus}${projectQuery}`, {
+      const response = await fetchApi(`${API_URL}/api/notes/${checkbox.dataset.noteStatus}${projectQuery}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", "X-Upload-Password": passwordHeader(password) },
         body: JSON.stringify({ status: checkbox.checked ? "resolved" : "new" }),
@@ -764,15 +1205,217 @@
       const updated = await response.json();
       if (!response.ok) throw new Error(updated.error || "Не удалось изменить статус заметки.");
       notes = notes.map((note) => note.id === updated.id ? updated : note);
-      passwordInput.value ||= password;
+      noteActionPassword = password;
+      rememberActionPassword(password);
       renderNotesList();
       window.dispatchEvent(new Event("notes-changed"));
       status.textContent = checkbox.checked ? "Пин выполнен и скрыт в 3D." : "Пин снова открыт и показан в 3D.";
     } catch (error) {
+      if (/парол/i.test(error.message)) noteActionPassword = "";
       checkbox.checked = !checkbox.checked;
       checkbox.disabled = false;
       status.textContent = error.message;
     }
+  });
+  document.getElementById("notes-list")?.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-delete-plan-note]");
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const note = notes.find((item) => item.id === button.dataset.deletePlanNote);
+    if (!note || !confirm(`Удалить замечание «${note.text}»?`)) return;
+    const password = noteActionPassword || actionPassword("Введите пароль, чтобы удалить замечание:");
+    if (!password) return;
+    const status = document.getElementById("notes-status");
+    button.disabled = true;
+    try {
+      const response = await fetchApi(`${API_URL}/api/notes/${note.id}${projectQuery}`, {
+        method: "DELETE",
+        headers: { "X-Upload-Password": passwordHeader(password) },
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Не удалось удалить замечание.");
+      noteActionPassword = password;
+      rememberActionPassword(password);
+      notes = result;
+      if (activeNoteId === note.id) activeNoteId = null;
+      renderNotesList();
+      window.dispatchEvent(new Event("notes-changed"));
+      status.textContent = "Замечание удалено.";
+    } catch (error) {
+      if (/парол/i.test(error.message)) noteActionPassword = "";
+      button.disabled = false;
+      status.textContent = error.message;
+    }
+  });
+  document.getElementById("notes-list")?.addEventListener("click", (event) => {
+    if (event.target.closest("[data-note-status], [data-delete-plan-note]")) return;
+    const card = event.target.closest("[data-open-note]");
+    if (!card) return;
+    activeNoteId = card.dataset.openNote;
+    renderNotesList();
+  });
+  document.querySelectorAll("[data-plan-note-filter]").forEach((button) => button.addEventListener("click", () => {
+    planNoteFilter = button.dataset.planNoteFilter;
+    document.querySelectorAll("[data-plan-note-filter]").forEach((item) => item.classList.toggle("active", item === button));
+    renderNotesList();
+  }));
+  document.getElementById("plan-show-resolved").addEventListener("click", () => {
+    document.querySelector(`[data-plan-note-filter="${planNoteFilter === "resolved" ? "all" : "resolved"}"]`).click();
+  });
+  document.getElementById("plan-notes-sort").addEventListener("change", (event) => {
+    notes.sort((a, b) => (new Date(b.createdAt) - new Date(a.createdAt)) * (event.target.selectedIndex ? -1 : 1));
+    renderNotesList();
+  });
+  document.querySelectorAll("[data-plan-zoom]").forEach((button) => button.addEventListener("click", () => {
+    const action = button.dataset.planZoom;
+    planZoom = Math.max(.6, Math.min(2.4, planZoom + (action === "in" ? .2 : -.2)));
+    document.getElementById("plan-zoom-value").textContent = `${Math.round(planZoom * 100)}%`;
+    renderPlanWorkspace();
+  }));
+  const planRoomSelect = document.getElementById("plan-room-filter");
+  if (planRoomSelect) {
+    Object.entries(roomNames).forEach(([id, name]) => planRoomSelect.add(new Option(name, id)));
+    planRoomSelect.addEventListener("change", () => { planRoomFilter = planRoomSelect.value; renderNotesList(); });
+  }
+  const activePlanBoard = document.getElementById("pin-board");
+  let draggedPlanNoteId = null,
+    draggedPlanPoint = null,
+    draggedPlanMoved = false,
+    draggingDraftPlanPoint = false,
+    suppressPlanClick = false;
+  const eventPlanPoint = (event) => {
+    const bounds = activePlanBoard.getBoundingClientRect(), image = planImageRect(activePlanBoard);
+    return {
+      x: Math.max(0, Math.min(1, (event.clientX - bounds.left - activePlanBoard.clientLeft - image.left) / image.width)),
+      y: Math.max(0, Math.min(1, (event.clientY - bounds.top - activePlanBoard.clientTop - image.top) / image.height)),
+    };
+  };
+  activePlanBoard.addEventListener("click", (event) => {
+    if (suppressPlanClick) return;
+    const pin = event.target.closest("[data-note-id]");
+    if (pin) { activeNoteId = pin.dataset.noteId; renderNotesList(); return; }
+    if (!projectFloorplanUrl) return;
+    const board = event.currentTarget, bounds = board.getBoundingClientRect(), image = planImageRect(board),
+      x = (event.clientX - bounds.left - board.clientLeft - image.left) / image.width,
+      y = (event.clientY - bounds.top - board.clientTop - image.top) / image.height;
+    if (x < 0 || x > 1 || y < 0 || y > 1) return;
+    draftPlanPoint = { x, y };
+    board.classList.add("placing-note"); renderPlanWorkspace();
+    document.getElementById("note-text").focus();
+    document.getElementById("notes-status").textContent = "Место выбрано. Чёрный маркер можно перетащить мышью.";
+  });
+  activePlanBoard.addEventListener("pointerdown", (event) => {
+    if (event.target.closest(".draft-note-pin") && event.button === 0) {
+      draggingDraftPlanPoint = true;
+      activePlanBoard.setPointerCapture?.(event.pointerId);
+      event.preventDefault();
+      return;
+    }
+    const pin = event.target.closest("[data-note-id]");
+    if (!pin || event.button !== 0) return;
+    draggedPlanNoteId = pin.dataset.noteId;
+    draggedPlanPoint = notePlanPoint(notes.find((note) => note.id === draggedPlanNoteId));
+    draggedPlanMoved = false;
+    pin.classList.add("dragging");
+    activePlanBoard.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  });
+  activePlanBoard.addEventListener("pointermove", (event) => {
+    if (draggingDraftPlanPoint) {
+      draftPlanPoint = eventPlanPoint(event);
+      renderPlanWorkspace();
+      event.preventDefault();
+      return;
+    }
+    if (draggedPlanNoteId) {
+      draggedPlanPoint = eventPlanPoint(event);
+      draggedPlanMoved = true;
+      const pin = activePlanBoard.querySelector(`[data-note-id="${CSS.escape(draggedPlanNoteId)}"]`), image = planImageRect(activePlanBoard);
+      if (pin) {
+        pin.style.left = `${image.left + draggedPlanPoint.x * image.width}px`;
+        pin.style.top = `${image.top + draggedPlanPoint.y * image.height}px`;
+      }
+      event.preventDefault();
+      return;
+    }
+  });
+  activePlanBoard.addEventListener("pointerup", async (event) => {
+    if (draggingDraftPlanPoint) {
+      draggingDraftPlanPoint = false;
+      suppressPlanClick = true;
+      setTimeout(() => (suppressPlanClick = false), 0);
+      activePlanBoard.releasePointerCapture?.(event.pointerId);
+      document.getElementById("note-text").focus();
+      document.getElementById("notes-status").textContent = "Место выбрано — опишите замечание.";
+      return;
+    }
+    if (!draggedPlanNoteId) return;
+    const noteId = draggedPlanNoteId,
+      point = draggedPlanPoint,
+      note = notes.find((item) => item.id === noteId);
+    draggedPlanNoteId = null;
+    draggedPlanPoint = null;
+    activePlanBoard.releasePointerCapture?.(event.pointerId);
+    if (!draggedPlanMoved || !note || !point) return renderPlanWorkspace();
+    suppressPlanClick = true;
+    setTimeout(() => (suppressPlanClick = false), 0);
+    const password = noteActionPassword || actionPassword("Введите пароль, чтобы сохранить положение пина:");
+    if (!password) return renderPlanWorkspace();
+    try {
+      const update = positionFromPlanPoint(point, note),
+        response = await fetchApi(`${API_URL}/api/notes/${noteId}${projectQuery}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", "X-Upload-Password": passwordHeader(password) },
+          body: JSON.stringify(update),
+        }),
+        saved = await response.json();
+      if (!response.ok) throw new Error(saved.error || "Не удалось переместить пин.");
+      notes = notes.map((item) => item.id === saved.id ? saved : item);
+      noteActionPassword = password;
+      rememberActionPassword(password);
+      activeNoteId = saved.id;
+      document.getElementById("notes-status").textContent = "Положение пина сохранено и обновлено в 3D.";
+      renderNotesList();
+      window.dispatchEvent(new Event("notes-changed"));
+    } catch (error) {
+      document.getElementById("notes-status").textContent = error.message;
+      renderPlanWorkspace();
+    }
+  });
+  if ("ResizeObserver" in window) {
+    new ResizeObserver(() => {
+      if (document.getElementById("panel-plan")?.classList.contains("active")) renderPlanWorkspace();
+    }).observe(document.getElementById("pin-board"));
+  }
+  document.getElementById("notes-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const text = document.getElementById("note-text"), status = document.getElementById("notes-status");
+    if (!draftPlanPoint) { status.textContent = "Сначала выберите место на плане."; return; }
+    const password = noteActionPassword || actionPassword("Введите пароль, чтобы добавить замечание:");
+    if (!password) return;
+    try {
+      const response = await fetchApi(`${API_URL}/api/notes${projectQuery}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Upload-Password": passwordHeader(password) },
+        body: JSON.stringify({ text: text.value, roomId: planRoomFilter === "all" ? null : planRoomFilter, ...positionFromPlanPoint(draftPlanPoint, null) }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Не удалось добавить замечание.");
+      noteActionPassword = password;
+      rememberActionPassword(password);
+      notes.push(result); activeNoteId = result.id; draftPlanPoint = null; text.value = ""; text.style.height = "42px";
+      status.textContent = "Замечание добавлено."; renderNotesList(); window.dispatchEvent(new Event("notes-changed"));
+    } catch (error) { status.textContent = error.message; }
+  });
+  const planNoteText = document.getElementById("note-text");
+  planNoteText.addEventListener("input", () => {
+    planNoteText.style.height = "42px";
+    planNoteText.style.height = `${Math.min(planNoteText.scrollHeight, 108)}px`;
+    planNoteText.style.overflowY = planNoteText.scrollHeight > 108 ? "auto" : "hidden";
+  });
+  document.getElementById("plan-download").addEventListener("click", () => {
+    if (projectFloorplanUrl) window.open(projectFloorplanUrl, "_blank", "noopener");
   });
   loadRooms();
   loadNotesList();

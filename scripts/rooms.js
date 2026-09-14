@@ -1,11 +1,13 @@
 (() => {
   const passwordHeader = (value) => `roomark-uri:${encodeURIComponent(value)}`;
+  const actionPassword = (message) => window.RoomarkSessionPassword?.get() || prompt(message) || "";
   document.querySelectorAll("svg.icon").forEach((icon) => {
     icon.setAttribute("viewBox", "0 0 24 24");
     icon.setAttribute("aria-hidden", "true");
   });
   if (new URLSearchParams(location.search).has("preview")) return;
   const API_URL = window.HouseConfig?.apiBaseUrl || location.origin;
+  const fetchApi = (url, options = {}) => fetch(url, { credentials: "include", ...options });
   const projectId = new URLSearchParams(location.search).get("project"),
     projectQuery = projectId ? `?project=${encodeURIComponent(projectId)}` : "";
   let rooms = window.AUTO_ROOMS?.length ? window.AUTO_ROOMS : window.HOUSE_ROOMS,
@@ -83,7 +85,7 @@
 
   async function loadData() {
     try {
-      const catalogResponse = await fetch(`${API_URL}/api/rooms`, { cache: "no-store" });
+      const catalogResponse = await fetchApi(`${API_URL}/api/rooms`, { cache: "no-store" });
       if (catalogResponse.ok && !window.AUTO_ROOMS?.length) {
         rooms = await catalogResponse.json();
         indexRooms();
@@ -98,7 +100,7 @@
     const results = await Promise.all(
       rooms.map(async (room) => {
         try {
-          const response = await fetch(`${API_URL}/api/rooms/${room.id}`, { cache: "no-store" });
+          const response = await fetchApi(`${API_URL}/api/rooms/${room.id}`, { cache: "no-store" });
           return [room.id, response.ok ? await response.json() : {}];
         } catch {
           return [room.id, {}];
@@ -107,7 +109,7 @@
     );
     manifests = Object.fromEntries(results);
     try {
-      const response = await fetch(`${API_URL}/api/notes${projectQuery}`, { cache: "no-store" });
+      const response = await fetchApi(`${API_URL}/api/notes${projectQuery}`, { cache: "no-store" });
       notes = response.ok ? await response.json() : [];
     } catch {
       notes = [];
@@ -233,6 +235,7 @@
     if (updateUrl) window.top.history.pushState({}, "", browserUrl());
     renderSidebar();
   }
+  window.closeHouseRoom = () => closeRoom(false);
   window.openSelectedRoomSection = (mode) => {
     if (!selectedRoom) return false;
     const tab = {
@@ -287,16 +290,16 @@
       photos = data.photos || [];
     if (selectedTab === "overview") {
       const hero = absolute(photos[0]?.url || data.renderUrls?.[0] || data.floorplanUrl);
-      content.innerHTML = `<div class="overview-grid"><article class="overview-card overview-hero"><img src="${hero}" alt="${selectedRoom.name}"><button class="primary" data-select-room-tab="3d">Показать в 3D</button></article><div style="display:grid;gap:16px"><article class="overview-card"><h3>Материалы</h3><p>${photos.length} фото · ${(data.renderUrls || []).length} рендеров</p><button class="primary" data-open-photo-upload>Загрузить фото</button></article><article class="overview-card"><h3>Замечания</h3><p>${roomNotes.length} связанных замечаний</p><button class="secondary" data-select-room-tab="notes">Открыть заметки</button></article></div></div>`;
+      content.innerHTML = `<div class="overview-grid"><article class="overview-card overview-hero"><img src="${esc(hero)}" alt="${esc(selectedRoom.name)}"><button class="primary" data-select-room-tab="3d">Показать в 3D</button></article><div style="display:grid;gap:16px"><article class="overview-card"><h3>Материалы</h3><p>${photos.length} фото · ${(data.renderUrls || []).length} рендеров</p><button class="primary" data-open-photo-upload>Загрузить фото</button></article><article class="overview-card"><h3>Замечания</h3><p>${roomNotes.length} связанных замечаний</p><button class="secondary" data-select-room-tab="notes">Открыть заметки</button></article></div></div>`;
     }
     if (selectedTab === "floorplan") {
       const plan = data.floorplanUrl
         ? absolute(data.floorplanUrl)
         : "./images/room-placeholder.svg";
-      content.innerHTML = `<article class="overview-card"><div class="photo-toolbar"><h2>Планировка</h2><button class="primary" data-upload-room-floorplan>${data.floorplanUrl ? "Заменить планировку" : "Загрузить планировку"}</button></div><img src="${plan}" alt="Планировка: ${selectedRoom.name}" style="display:block;width:100%;max-height:70vh;object-fit:contain;border-radius:14px;background:#e9eef5"></article>`;
+      content.innerHTML = `<article class="overview-card"><div class="photo-toolbar"><h2>Планировка</h2><button class="primary" data-upload-room-floorplan>${data.floorplanUrl ? "Заменить планировку" : "Загрузить планировку"}</button></div><img src="${esc(plan)}" alt="Планировка: ${esc(selectedRoom.name)}" style="display:block;width:100%;max-height:70vh;object-fit:contain;border-radius:14px;background:#e9eef5"></article>`;
     }
     if (selectedTab === "3d") {
-      content.innerHTML = `<div class="photo-toolbar"><button class="secondary" data-go-home>Вернуться к общей модели</button><button class="primary" data-upload-room-model>${data.modelUrl ? "Заменить 3D-модель" : "Загрузить 3D-модель"}</button></div>${data.modelUrl ? `<iframe class="room-model-frame" src="./viewer.html?preview=1&room=${encodeURIComponent(selectedRoom.id)}&model=${encodeURIComponent(absolute(data.modelUrl))}" title="3D: ${selectedRoom.name}"></iframe>` : `<div class="empty-state"><strong style="display:block;margin-bottom:8px;color:var(--color-text-primary)">3D-модель помещения не загружена</strong><span>Нажмите «Загрузить 3D-модель» и выберите файл GLB.</span></div>`}`;
+      content.innerHTML = `<div class="photo-toolbar"><button class="secondary" data-go-home>Вернуться к общей модели</button><button class="primary" data-upload-room-model>${data.modelUrl ? "Заменить 3D-модель" : "Загрузить 3D-модель"}</button></div>${data.modelUrl ? `<iframe class="room-model-frame" src="./viewer.html?preview=1&room=${encodeURIComponent(selectedRoom.id)}&model=${encodeURIComponent(absolute(data.modelUrl))}" title="3D: ${esc(selectedRoom.name)}"></iframe>` : `<div class="empty-state"><strong style="display:block;margin-bottom:8px;color:var(--color-text-primary)">3D-модель помещения не загружена</strong><span>Нажмите «Загрузить 3D-модель» и выберите файл GLB.</span></div>`}`;
     }
     if (selectedTab === "photos") {
       const filtered =
@@ -315,7 +318,7 @@
         .join("")}</div>${photoCards(filtered)}`;
     }
     if (selectedTab === "renders")
-      content.innerHTML = `<div class="photo-toolbar"><h2>Рендеры</h2><button class="primary" data-open-render-upload>Загрузить рендер</button></div>${(data.renderUrls || []).length ? `<div class="gallery-grid">${data.renderUrls.map((url, index) => `<button class="gallery-card" data-image="${absolute(url)}" data-caption="${selectedRoom.name} · рендер ${index + 1}"><img src="${absolute(url)}" alt="Рендер ${index + 1}"><span>Рендер ${index + 1}</span></button>`).join("")}</div>` : `<div class="empty-state">Рендеры ещё не загружены.</div>`}`;
+      content.innerHTML = `<div class="photo-toolbar"><h2>Рендеры</h2><button class="primary" data-open-render-upload>Загрузить рендер</button></div>${(data.renderUrls || []).length ? `<div class="gallery-grid">${data.renderUrls.map((url, index) => `<button class="gallery-card" data-image="${esc(absolute(url))}" data-caption="${esc(selectedRoom.name)} · рендер ${index + 1}"><img src="${esc(absolute(url))}" alt="Рендер ${index + 1}"><span>Рендер ${index + 1}</span></button>`).join("")}</div>` : `<div class="empty-state">Рендеры ещё не загружены.</div>`}`;
     if (selectedTab === "documents") {
       const documents = [
         data.floorplanUrl && { name: `Планировка — ${selectedRoom.name}`, type: "Изображение", url: data.floorplanUrl },
@@ -334,10 +337,10 @@
       event.preventDefault();
       const currentNote = notes.find((note) => note.id === noteStatus.dataset.roomNoteStatus),
         nextStatus = currentNote?.status === "resolved" ? "new" : "resolved",
-        password = prompt("Введите пароль, чтобы изменить статус заметки:") || "";
+        password = actionPassword("Введите пароль, чтобы изменить статус заметки:");
       if (!password) return;
       noteStatus.disabled = true;
-      fetch(`${API_URL}/api/notes/${noteStatus.dataset.roomNoteStatus}${projectQuery}`, {
+      fetchApi(`${API_URL}/api/notes/${noteStatus.dataset.roomNoteStatus}${projectQuery}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", "X-Upload-Password": passwordHeader(password) },
         body: JSON.stringify({ status: nextStatus }),
@@ -547,10 +550,10 @@
   }
   async function deleteRoom(room) {
     if (!room || !confirm(`Удалить комнату «${room.name}» и все её материалы?`)) return;
-    const password = prompt("Введите пароль для удаления комнаты:") || "";
+    const password = actionPassword("Введите пароль для удаления комнаты:");
     if (!password) return;
     try {
-      const response = await fetch(`${API_URL}/api/rooms/${encodeURIComponent(room.id)}`, {
+      const response = await fetchApi(`${API_URL}/api/rooms/${encodeURIComponent(room.id)}`, {
         method: "DELETE",
         headers: { "X-Upload-Password": passwordHeader(password) },
       });
@@ -587,7 +590,7 @@
     submit.disabled = true;
     state.textContent = editingRoom ? "Сохраняем изменения…" : "Добавляем помещение…";
     try {
-      const response = await fetch(
+      const response = await fetchApi(
         editingRoom
           ? `${API_URL}/api/rooms/${encodeURIComponent(editingRoom.id)}`
           : `${API_URL}/api/rooms`,
@@ -647,12 +650,12 @@
   roomFloorplanInput.onchange = async () => {
     const file = roomFloorplanInput.files[0];
     if (!file) return;
-    const password = prompt("Введите пароль для загрузки планировки:") || "";
+    const password = actionPassword("Введите пароль для загрузки планировки:");
     if (!password) return;
     const data = new FormData();
     data.append("file", file);
     try {
-      const response = await fetch(`${API_URL}/api/rooms/${selectedRoom.id}/assets/floorplan`, {
+      const response = await fetchApi(`${API_URL}/api/rooms/${selectedRoom.id}/assets/floorplan`, {
           method: "POST",
           headers: { "X-Upload-Password": passwordHeader(password) },
           body: data,
@@ -750,7 +753,7 @@
       renderFilesInput.value = "";
       return;
     }
-    const password = prompt("Введите пароль для загрузки рендеров:") || "";
+    const password = actionPassword("Введите пароль для загрузки рендеров:");
     if (!password) {
       renderFilesInput.value = "";
       return;
@@ -759,7 +762,7 @@
       for (let index = 0; index < files.length; index++) {
         const data = new FormData();
         data.append("file", files[index]);
-        const response = await fetch(`${API_URL}/api/rooms/${selectedRoom.id}/assets/render`, {
+        const response = await fetchApi(`${API_URL}/api/rooms/${selectedRoom.id}/assets/render`, {
           method: "POST",
           headers: { "X-Upload-Password": passwordHeader(password) },
           body: data,
@@ -785,7 +788,7 @@
       roomModelInput.value = "";
       return;
     }
-    const password = prompt("Введите пароль для загрузки 3D-модели комнаты:") || "";
+    const password = actionPassword("Введите пароль для загрузки 3D-модели комнаты:");
     if (!password) {
       roomModelInput.value = "";
       return;
@@ -793,7 +796,7 @@
     try {
       const data = new FormData();
       data.append("file", file);
-      const response = await fetch(`${API_URL}/api/rooms/${selectedRoom.id}/assets/model`, {
+      const response = await fetchApi(`${API_URL}/api/rooms/${selectedRoom.id}/assets/model`, {
         method: "POST",
         headers: { "X-Upload-Password": passwordHeader(password) },
         body: data,
@@ -814,7 +817,7 @@
     const state = document.getElementById("photo-upload-state"),
       submit = document.getElementById("photo-upload-submit");
     if (!selectedFiles.length) return (state.textContent = "Выберите хотя бы одно фото.");
-    const password = prompt("Введите пароль для загрузки фотографий:") || "";
+    const password = actionPassword("Введите пароль для загрузки фотографий:");
     if (!password) return (state.textContent = "Загрузка отменена: пароль не введён.");
     submit.disabled = true;
     try {

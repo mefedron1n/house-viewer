@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import crypto from "node:crypto";
 
 test("calibration and world-space pins are isolated by project", async () => {
   const storage = await fs.mkdtemp(path.join(os.tmpdir(), "roomark-spatial-test-"));
@@ -14,11 +15,21 @@ test("calibration and world-space pins are isolated by project", async () => {
   const base = `http://127.0.0.1:${server.address().port}`,
     projectA = "aaaaaaaaaaaaaaaaaaaaaaaa",
     projectB = "bbbbbbbbbbbbbbbbbbbbbbbb",
+    token = crypto.randomBytes(32).toString("hex"),
     headers = {
       "Content-Type": "application/json",
       "X-Upload-Password": "spatial-test",
+      Cookie: `roomark_session=${token}`,
     };
   try {
+    const userId = "c".repeat(32);
+    await fs.writeFile(path.join(storage, "users.json"), JSON.stringify([{ id: userId }]));
+    await fs.writeFile(path.join(storage, "sessions.json"), JSON.stringify([{
+      userId, tokenHash: crypto.createHash("sha256").update(token).digest("hex"),
+      expiresAt: Date.now() + 60000,
+    }]));
+    await fs.writeFile(path.join(storage, "user-projects.json"), JSON.stringify(
+      [projectA, projectB].map((id) => ({ id, ownerId: userId }))));
     const calibration = {
       version: 1,
       matrix: { a: 10, b: 0, c: 4, d: 0, e: -8, f: 3 },
@@ -54,8 +65,8 @@ test("calibration and world-space pins are isolated by project", async () => {
     });
     assert.equal(resolvedResponse.status, 200);
     assert.equal((await resolvedResponse.json()).status, "resolved");
-    assert.equal((await fetch(`${base}/api/notes?project=${projectA}`).then((r) => r.json())).length, 1);
-    assert.equal((await fetch(`${base}/api/notes?project=${projectB}`).then((r) => r.json())).length, 0);
+    assert.equal((await fetch(`${base}/api/notes?project=${projectA}`, { headers }).then((r) => r.json())).length, 1);
+    assert.equal((await fetch(`${base}/api/notes?project=${projectB}`, { headers }).then((r) => r.json())).length, 0);
   } finally {
     server.close();
     await fs.rm(storage, { recursive: true, force: true });

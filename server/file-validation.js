@@ -58,6 +58,22 @@ export async function validateGlbFile(file, { maxJsonBytes = 8 * 1024 * 1024 } =
   }
 }
 
+export async function validatePdfFile(file) {
+  const stat = await fs.stat(file);
+  if (stat.size < 8) return false;
+  const handle = await fs.open(file, "r");
+  try {
+    const head = Buffer.alloc(Math.min(1024, stat.size)),
+      tailLength = Math.min(2048, stat.size),
+      tail = Buffer.alloc(tailLength);
+    await handle.read(head, 0, head.length, 0);
+    await handle.read(tail, 0, tail.length, stat.size - tailLength);
+    return /^%PDF-1\.[0-9]/.test(head.toString("latin1")) && /%%EOF[\s\0]*$/.test(tail.toString("latin1"));
+  } finally {
+    await handle.close();
+  }
+}
+
 export async function normalizeImage(input, output, limits) {
   const image = sharp(input, {
     limitInputPixels: limits.maxPixels,
