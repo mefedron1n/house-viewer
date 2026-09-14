@@ -203,6 +203,8 @@ function finishModel(model, animations, url) {
   disposeModel(house);
   if (activeObjectUrl && activeObjectUrl !== url) URL.revokeObjectURL(activeObjectUrl);
   house = model;
+  window.RoomarkModelKey = url;
+  window.dispatchEvent(new Event("model-spatial-ready"));
   prepare(model);
   fit(model);
   scene.add(model);
@@ -754,7 +756,7 @@ async function loadModelNotes() {
   try {
     const response = await fetchApi(`${API_URL}/api/notes${projectQuery}`, { cache: "no-store" });
     modelNotes = response.ok
-      ? (await response.json()).filter((note) => note.status !== "resolved")
+      ? (await response.json()).filter((note) => note.status !== "resolved" && note.source !== "room-media" && note.coordinateSpace === "model-world-v1")
       : [];
     if (!modelNotes.some((note) => note.id === activeModelNoteId)) activeModelNoteId = null;
     renderModelNotes();
@@ -935,6 +937,14 @@ renderer.domElement.addEventListener("dblclick", async (event) => {
   event.stopPropagation();
 
   const position = { x: hit.point.x, y: hit.point.y, z: hit.point.z };
+  // Alignment consumes the click only while its model-point step is actually active.
+  // A stale global flag must never prevent creating a regular model pin.
+  const alignmentPointEvent = new CustomEvent("alignment-model-point", {
+    detail: position,
+    cancelable: true,
+  });
+  if (!window.dispatchEvent(alignmentPointEvent)) return;
+
   pendingPinPosition = position;
   pendingPinRoomId = selectedRoomId || window.NOTE_ROOM_ID || null;
   pendingPinDeleteId = null;

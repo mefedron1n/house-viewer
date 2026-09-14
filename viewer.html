@@ -97,43 +97,43 @@
       }
       html.dark {
         color-scheme: dark;
-        --color-page: #111820;
-        --color-canvas: #18222c;
-        --color-surface: #1d2731;
-        --color-surface-soft: #222e39;
-        --color-surface-muted: #293642;
-        --color-surface-hover: #2c3945;
-        --color-surface-active: #263b4d;
-        --color-text-primary: #e7ecf0;
-        --color-text-secondary: #b5c0c9;
-        --color-text-muted: #8997a3;
-        --color-text-disabled: #64727e;
-        --color-border: #3a4854;
-        --color-border-soft: #303d48;
-        --color-border-strong: #4a5965;
-        --color-primary: #79a8d0;
-        --color-primary-hover: #8bb7da;
-        --color-primary-active: #a2c6e2;
-        --color-primary-soft: #243b4e;
-        --color-primary-border: #3e617c;
-        --color-success: #7db294;
-        --color-success-soft: #20382c;
-        --color-success-border: #355c45;
-        --color-warning: #d3a263;
-        --color-warning-soft: #402f1f;
-        --color-warning-border: #654a2d;
-        --color-danger: #d98282;
-        --color-danger-soft: #452727;
-        --color-danger-border: #704040;
-        --color-overlay: rgba(5, 9, 13, 0.58);
-        --color-overlay-strong: rgba(5, 9, 13, 0.78);
-        --color-glass: rgba(29, 39, 49, 0.88);
-        --color-glass-strong: rgba(29, 39, 49, 0.95);
+        --color-page: #0e100d;
+        --color-canvas: #171a16;
+        --color-surface: #1a1d19;
+        --color-surface-soft: #20241f;
+        --color-surface-muted: #272c26;
+        --color-surface-hover: #2b302a;
+        --color-surface-active: #34382f;
+        --color-text-primary: #eeeef0;
+        --color-text-secondary: #b5b8b1;
+        --color-text-muted: #858a83;
+        --color-text-disabled: #626860;
+        --color-border: #3a4039;
+        --color-border-soft: #303630;
+        --color-border-strong: #4b524a;
+        --color-primary: #f5a51c;
+        --color-primary-hover: #ffb52e;
+        --color-primary-active: #d98c10;
+        --color-primary-soft: rgba(245, 165, 28, 0.12);
+        --color-primary-border: rgba(245, 165, 28, 0.42);
+        --color-success: #8dbd73;
+        --color-success-soft: #20331f;
+        --color-success-border: #3f6540;
+        --color-warning: #f0b662;
+        --color-warning-soft: #3d2d16;
+        --color-warning-border: #70501e;
+        --color-danger: #e5847e;
+        --color-danger-soft: #412422;
+        --color-danger-border: #713c38;
+        --color-overlay: rgba(3, 5, 3, 0.62);
+        --color-overlay-strong: rgba(3, 5, 3, 0.8);
+        --color-glass: rgba(23, 26, 22, 0.9);
+        --color-glass-strong: rgba(23, 26, 22, 0.96);
         --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.18);
         --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.22);
         --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.3);
         --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.4);
-        --focus-ring: 0 0 0 3px rgba(121, 168, 208, 0.28);
+        --focus-ring: 0 0 0 3px rgba(245, 165, 28, 0.28);
       }
       * {
         box-sizing: border-box;
@@ -2609,9 +2609,9 @@
     <link rel="stylesheet" href="./styles/spatial.css?v=1" />
     <link rel="stylesheet" href="./styles/viewer-reference.css?v=8" />
     <link rel="stylesheet" href="./styles/workspace-pages.css?v=3" />
-    <link rel="stylesheet" href="./styles/viewer-ux.css?v=4" />
-    <link rel="stylesheet" href="./styles/photos-page.css?v=3" />
-    <link rel="stylesheet" href="./styles/plan-notes.css?v=7" />
+    <link rel="stylesheet" href="./styles/viewer-ux.css?v=5" />
+    <link rel="stylesheet" href="./styles/photos-page.css?v=8" />
+    <link rel="stylesheet" href="./styles/plan-notes.css?v=8" />
     <link rel="stylesheet" href="./styles/renders-page.css?v=2" />
   </head>
   <body>
@@ -2825,6 +2825,7 @@
         </form>
       </dialog>
 
+      <div id="alignment-model-banner" hidden><span id="alignment-model-message"></span><button id="alignment-model-cancel" type="button">Отмена</button></div>
       <main id="room-page" class="room-page">
         <div class="room-page-inner">
           <button id="room-back" class="room-back" type="button">← Назад к квартире</button>
@@ -2846,16 +2847,17 @@
         <div class="plan-notes-shell">
           <header class="plan-notes-head">
             <div><p class="eyebrow">Проект / Планы и замечания</p><h2>План проекта</h2><p id="plan-project-summary">Все помещения · замечания на общем плане</p></div>
-            <div class="plan-head-actions"><button id="project-floorplan-upload" class="primary" type="button">+ Загрузить план</button></div>
+            <div class="plan-head-actions"><button id="alignment-start" class="secondary" type="button">Совместить с 3D</button><button id="project-floorplan-upload" class="primary" type="button">+ Загрузить план</button></div>
           </header>
           <div class="plan-notes-workspace">
             <main class="plan-canvas-column">
               <div class="plan-toolbar"><div class="plan-status-filters"><button class="active" type="button" data-plan-note-filter="all" aria-pressed="true">Все <span data-plan-count="all">0</span></button><button type="button" data-plan-note-filter="open" aria-pressed="false">Открытые <span data-plan-count="open">0</span></button><button type="button" data-plan-note-filter="resolved" aria-pressed="false">Исправленные <span data-plan-count="resolved">0</span></button></div></div>
-              <div id="pin-board" class="pin-board project-plan-board"><div class="workspace-empty"><h3>Загрузите общий план проекта</h3><p>После загрузки отмечайте замечания непосредственно на плане.</p></div></div>
+              <div class="alignment-controls"><p id="calibration-state" role="status"></p><button id="alignment-save" type="button" hidden>Сохранить совмещение</button><button id="alignment-cancel" type="button" hidden>Отмена</button></div>
+              <div id="pin-board" class="pin-board project-plan-board"><div class="workspace-empty"><h3>Загрузите общий план проекта</h3><p>Совместите план с 3D, чтобы увидеть замечания с модели.</p></div></div>
               <div class="plan-canvas-footer"><div class="plan-zoom"><button type="button" data-plan-zoom="out" aria-label="Уменьшить план">−</button><span id="plan-zoom-value">100%</span><button type="button" data-plan-zoom="in" aria-label="Увеличить план">+</button></div><button id="plan-download" class="secondary" type="button">Скачать план</button></div>
               <p id="project-floorplan-status" class="status" aria-live="polite"></p>
             </main>
-            <aside class="plan-notes-sidebar"><div class="plan-notes-sidebar-head"><div><h3>Замечания</h3><p id="plan-open-count">0 открытых</p></div><select id="plan-notes-sort" aria-label="Сортировка замечаний"><option>Сначала новые</option><option>Сначала старые</option></select></div><div id="notes-list" class="notes-list"></div><button id="plan-show-resolved" class="plan-show-resolved" type="button">Показать исправленные</button><form id="notes-form" class="plan-comment-form"><textarea id="note-text" maxlength="500" rows="1" placeholder="Опишите замечание…" aria-label="Текст замечания" required></textarea><button id="note-submit" class="primary" type="submit" aria-label="Добавить замечание">→</button></form><input id="notes-password" type="password" hidden><p id="notes-status" class="status" aria-live="polite"></p></aside>
+            <aside class="plan-notes-sidebar"><div class="plan-notes-sidebar-head"><div><h3>Замечания</h3><p id="plan-open-count">0 открытых</p></div><select id="plan-notes-sort" aria-label="Сортировка замечаний"><option>Сначала новые</option><option>Сначала старые</option></select></div><div id="notes-list" class="notes-list"></div><button id="plan-show-resolved" class="plan-show-resolved" type="button">Показать исправленные</button><p class="plan-pin-help">Добавляйте пины двойным щелчком по 3D-модели. Здесь можно отметить замечание выполненным или удалить.</p><p id="notes-status" class="status" aria-live="polite"></p></aside>
           </div>
         </div>
       </section>
@@ -3021,26 +3023,27 @@
         <p id="room-description"></p>
       </div>
       <dialog id="lightbox">
-        <img class="lightbox-image" alt="" />
+        <div class="lightbox-stage">
+          <img class="lightbox-image" alt="" />
+          <button id="lightbox-prev" class="lightbox-arrow previous" aria-label="Предыдущее фото">‹</button>
+          <button id="lightbox-next" class="lightbox-arrow next" aria-label="Следующее фото">›</button>
+        </div>
         <div class="lightbox-footer">
-          <button id="lightbox-prev" class="lightbox-close" aria-label="Предыдущее фото">‹</button
-          ><span id="lightbox-caption"></span><span id="lightbox-counter"></span
-          ><button id="lightbox-next" class="lightbox-close" aria-label="Следующее фото">›</button
-          ><button id="lightbox-close" class="lightbox-close" aria-label="Закрыть">×</button>
+          <span id="lightbox-caption"></span><span id="lightbox-counter"></span>
         </div>
       </dialog>
       <dialog id="room-media-dialog" class="room-media-dialog">
         <section class="room-media-shell" aria-labelledby="room-media-title">
           <header class="room-media-head">
             <div><h2 id="room-media-title">Материалы комнаты</h2><p id="room-media-subtitle">Фото и документы</p></div>
-            <div><span id="room-media-counter">0 / 0</span><button id="room-media-close" type="button" aria-label="Закрыть">×</button></div>
+            <div class="room-media-head-actions"><span id="room-media-counter">0 / 0</span><button id="room-media-close" type="button" aria-label="Закрыть"><span aria-hidden="true"></span></button></div>
           </header>
           <div id="room-media-stage" class="room-media-stage"></div>
           <div id="room-media-thumbnails" class="room-media-thumbnails" aria-label="Материалы комнаты"></div>
           <div class="room-media-actions">
             <input id="room-media-files" type="file" multiple hidden>
-            <button id="room-media-upload" class="room-media-upload" type="button"><span aria-hidden="true">+</span> Загрузить</button>
-            <small id="room-media-types">JPEG, PNG, PDF</small>
+            <button id="room-media-upload" class="room-media-upload" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 12.5 13.7 7.3a3.3 3.3 0 0 1 4.7 4.7l-7.7 7.7a5 5 0 0 1-7.1-7.1l7.2-7.2a3.3 3.3 0 0 1 4.7 4.7L8.2 17.4a1.6 1.6 0 1 1-2.3-2.3l6.7-6.7"/></svg><span>Загрузить</span></button>
+            <small id="room-media-types">Поддерживаются файлы: JPEG, PNG, PDF</small>
             <button id="room-media-delete" class="room-media-delete" type="button" aria-label="Удалить текущий материал" title="Удалить текущий материал">
               <svg class="icon"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>
             </button>
@@ -3049,7 +3052,7 @@
           <section id="room-media-notes" class="room-media-notes">
             <h3>Замечания</h3>
             <div id="room-media-notes-list"></div>
-            <form id="room-media-note-form"><textarea id="room-media-note-text" rows="1" maxlength="500" placeholder="Добавить замечание…" required></textarea><button type="submit" aria-label="Добавить замечание">→</button></form>
+            <form id="room-media-note-form"><textarea id="room-media-note-text" rows="1" maxlength="500" placeholder="Добавить замечание…" required></textarea><button type="submit" aria-label="Добавить замечание"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 4 16 8-16 8 3-8-3-8Zm3 8h9"/></svg></button></form>
           </section>
         </section>
       </dialog>
@@ -3244,8 +3247,9 @@
         );
       });
     </script>
-    <script type="module" src="./scripts/app.js?v=44"></script>
-    <script src="./scripts/interface.js?v=23"></script>
+    <script type="module" src="./scripts/app.js?v=46"></script>
+    <script src="./scripts/spatial.js?v=1"></script>
+    <script src="./scripts/interface.js?v=29"></script>
     <script src="./scripts/rooms.js?v=8"></script>
     <script src="./scripts/viewer-ux.js?v=4"></script>
   </body>

@@ -44,7 +44,7 @@ html.dark #panel-plan.mode-panel {
 #panel-plan .primary:hover { background: #ffb52d; }
 .plan-notes-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; width: 100%; height: 100%; min-height: 0; max-width: 1620px; margin: auto; }
 .plan-canvas-column, .plan-notes-sidebar { min-width: 0; min-height: 0; border: 1px solid var(--plan-line); border-radius: 10px; background: var(--plan-surface); }
-.plan-canvas-column { display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; padding: 16px; }
+.plan-canvas-column { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto auto; padding: 16px; }
 .plan-toolbar, .plan-canvas-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .plan-toolbar { padding-bottom: 16px; }
 .plan-status-filters { display: flex; gap: 4px; }
@@ -52,18 +52,18 @@ html.dark #panel-plan.mode-panel {
 .plan-status-filters button.active { border-color: #c48f33; background: #f5a51c0b; color: var(--plan-text); }
 .plan-status-filters button:hover { color: var(--plan-text); background: var(--plan-inset); }
 .plan-status-filters button > span { margin-left: 5px; padding: 2px 5px; border-radius: 4px; background: var(--plan-inset); font-size: 11px; font-variant-numeric: tabular-nums; }
-#panel-plan .project-plan-board { position: relative; min-height: 0; height: 100%; overflow: hidden; border: 1px solid var(--plan-line); border-radius: 7px; background: var(--plan-inset) center/contain no-repeat; box-shadow: none; cursor: crosshair; }
+#panel-plan .project-plan-board { position: relative; min-height: 0; height: 100%; overflow: hidden; border: 1px solid var(--plan-line); border-radius: 7px; background: var(--plan-inset) center/contain no-repeat; box-shadow: none; cursor: default; }
 #panel-plan .project-plan-board::before { content: none; }
 .project-plan-board .workspace-empty { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; padding: 24px; color: var(--plan-muted); }
 .project-plan-board .workspace-empty-icon { margin: auto; font-size: 38px; color: #d09b31; }
 .project-plan-board .workspace-empty h3 { margin: 14px 0 8px; color: var(--plan-text); font: 500 26px/1.25 Georgia, serif; }
 .project-plan-board .workspace-empty p { max-width: 330px; margin: 0 auto; font-size: 13px; line-height: 1.65; }
-#panel-plan .note-pin, #panel-plan .draft-note-pin { position: absolute; z-index: 3; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; translate: none; rotate: none; transform: translate(-50%, -50%); border: 2px solid #fff; border-radius: 50%; background: #f5a51c; color: #261c08; box-shadow: 0 3px 10px #0003; cursor: grab; touch-action: none; }
+#panel-plan .note-pin, #panel-plan .draft-note-pin { position: absolute; z-index: 3; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; translate: none; rotate: none; transform: translate(-50%, -50%); border: 2px solid #fff; border-radius: 50%; background: #f5a51c; color: #261c08; box-shadow: 0 3px 10px #0003; cursor: pointer; touch-action: auto; }
 #panel-plan .note-pin.dragging { cursor: grabbing; box-shadow: 0 0 0 5px #f5a51c55, 0 5px 14px #0004; }
 #panel-plan .note-pin span { transform: none; rotate: none; font-weight: 750; font-size: 12px; }
 #panel-plan .note-pin.active, #panel-plan .note-pin:hover { transform: translate(-50%, -50%); box-shadow: 0 0 0 4px #f5a51c55, 0 3px 12px #0003; }
 #panel-plan .note-pin.resolved { color: #fff; background: #758f62; }
-#panel-plan .draft-note-pin { color: #fff; background: #171a17; font-size: 20px; cursor: grab; touch-action: none; }
+#panel-plan .draft-note-pin { color: #fff; background: #171a17; font-size: 20px; cursor: pointer; touch-action: auto; }
 .plan-canvas-footer { padding-top: 14px; }
 .plan-zoom { display: flex; align-items: center; border: 1px solid var(--plan-line); border-radius: 7px; overflow: hidden; }
 .plan-zoom button { min-width: 36px; min-height: 38px; border: 0; border-radius: 0; background: transparent; color: var(--plan-text); font-size: 20px; cursor: pointer; }
@@ -119,3 +119,14 @@ html.dark #panel-plan.mode-panel {
   .plan-status-filters { flex-wrap: wrap; }
   .plan-status-filters button { padding: 0 10px; font-size: 12px; }
 }
+
+.alignment-controls { padding: 8px 0; font-size: 12px; }
+.alignment-controls p { margin: 0 0 8px; line-height: 1.5; }
+.alignment-controls button { margin-right: 8px; padding: 8px 12px; }
+.alignment-point { position: absolute; z-index: 5; display: grid; place-items: center; width: 28px; height: 28px; transform: translate(-50%, -50%); border: 2px solid white; border-radius: 50%; background: #2555b8; color: white; font-weight: 700; pointer-events: none; }
+#panel-plan #pin-board.calibrating { cursor: crosshair; }
+#alignment-model-banner { position: fixed; z-index: 100; top: 90px; left: 50%; transform: translateX(-50%); width: min(600px, 90vw); padding: 16px; border-radius: 12px; background: #fff; color: #242424; box-shadow: 0 4px 24px #0003; line-height: 1.5; }
+#alignment-model-banner button { margin-left: 12px; }
+#alignment-model-banner[hidden], .alignment-controls button[hidden] { display: none; }
+.plan-pin-help { font-size: 12px; line-height: 1.5; color: var(--plan-muted); }
+.plan-note-card.resolved p, .note-pin.resolved span { text-decoration: line-through; }

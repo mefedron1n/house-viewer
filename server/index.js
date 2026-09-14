@@ -1690,6 +1690,7 @@ app.post("/api/notes", requireUploadPassword, async (req, res, next) => {
     if (!text || text.length > 500)
       return res.status(400).json({ error: "Заметка должна содержать от 1 до 500 символов." });
     const roomId = roomIds.has(req.body.roomId) ? req.body.roomId : null;
+    const source = req.body.source === "room-media" ? "room-media" : "model";
     const coordinateSpace = req.body.coordinateSpace === "model-world-v1" ? "model-world-v1" : "legacy-normalized-v1";
     const position =
       req.body.position &&
@@ -1708,6 +1709,7 @@ app.post("/api/notes", requireUploadPassword, async (req, res, next) => {
       text,
       projectId,
       roomId,
+      source,
       position,
       coordinateSpace,
       status: "new",
