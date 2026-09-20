@@ -49,7 +49,7 @@
         );
       });
       const script = document.createElement("script");
-      script.src = "./scripts/studio.js?v=6";
+      script.src = "./scripts/studio.js?v=8";
       script.onload = () => document.querySelector("#studio-main").removeAttribute("aria-busy");
       document.body.append(script);
     })

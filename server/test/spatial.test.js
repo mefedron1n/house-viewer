@@ -51,22 +51,35 @@ test("calibration and world-space pins are isolated by project", async () => {
     const noteResponse = await fetch(`${base}/api/notes?project=${projectA}`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ text: "Проверить стену", position, coordinateSpace: "model-world-v1" }),
+      body: JSON.stringify({ text: "Проверить стену", roomId: "room_001", position, coordinateSpace: "model-world-v1" }),
     });
     assert.equal(noteResponse.status, 201);
     const note = await noteResponse.json();
     assert.deepEqual(note.position, position);
     assert.equal(note.coordinateSpace, "model-world-v1");
     assert.equal(note.projectId, projectA);
+    assert.equal(note.roomId, "room_001");
     const resolvedResponse = await fetch(`${base}/api/notes/${note.id}?project=${projectA}`, {
       method: "PATCH",
       headers,
       body: JSON.stringify({ status: "resolved" }),
     });
     assert.equal(resolvedResponse.status, 200);
-    assert.equal((await resolvedResponse.json()).status, "resolved");
-    assert.equal((await fetch(`${base}/api/notes?project=${projectA}`, { headers }).then((r) => r.json())).length, 1);
+    const updated = await resolvedResponse.json();
+    assert.equal(updated.status, "resolved");
+    assert.equal(updated.roomId, "room_001");
+    const savedNotes = await fetch(`${base}/api/notes?project=${projectA}`, { headers }).then((r) => r.json());
+    assert.equal(savedNotes.length, 1);
+    assert.equal(savedNotes[0].roomId, "room_001");
     assert.equal((await fetch(`${base}/api/notes?project=${projectB}`, { headers }).then((r) => r.json())).length, 0);
+    for (const roomId of ["2pQ_3vD9X4fB8aY0Z1$abc", "<invalid>", "r".repeat(129)]) {
+      const response = await fetch(`${base}/api/notes?project=${projectA}`, {
+        method: "POST", headers,
+        body: JSON.stringify({ text: "Пин на стене", roomId, position, coordinateSpace: "model-world-v1" }),
+      });
+      assert.equal(response.status, 201);
+      assert.equal((await response.json()).roomId, roomId.startsWith("2pQ") ? roomId : null);
+    }
   } finally {
     server.close();
     await fs.rm(storage, { recursive: true, force: true });

@@ -160,6 +160,7 @@ function prepare(model) {
   });
 }
 function fit(model) {
+  cameraAnimation = null;
   const box = new THREE.Box3().setFromObject(model);
   if (box.isEmpty()) return;
   const size = box.getSize(new THREE.Vector3()),
@@ -190,14 +191,6 @@ function animate(position, target, duration = 900) {
     toTarget: target.clone(),
   };
 }
-function startCameraIntro() {
-  if (pageParams.has("preview") || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const destination = originalPosition.clone();
-  camera.position.set(-destination.z * 1.18, destination.y * 1.12, destination.x * 1.18);
-  controls.target.copy(originalTarget);
-  controls.update();
-  animate(destination, originalTarget, 2600);
-}
 function finishModel(model, animations, url) {
   clearTimeout(window.__viewerReadyTimer);
   disposeModel(house);
@@ -214,7 +207,6 @@ function finishModel(model, animations, url) {
   }
   loadingScreen.classList.remove("has-error");
   loadingScreen.classList.add("hidden");
-  startCameraIntro();
   setTimeout(() => analyzeRooms(model), 20);
 }
 async function analyzeRooms(model) {
@@ -324,6 +316,7 @@ async function analyzeRooms(model) {
   publishRoomsAnalysis();
 }
 function publishRoomsAnalysis() {
+  window.RoomarkRooms = roomsAnalysis;
   window.AUTO_ROOMS = roomsAnalysis.rooms.map((room) => ({
     id: room.id,
     slug: room.id,
@@ -369,6 +362,7 @@ function publishRoomsAnalysis() {
         (bounds.min.z + bounds.max.z) / 2
       ),
       position = new THREE.Vector3(center.x + extent * 1.08, center.y + extent * 0.78, center.z + extent * 1.08);
+    cameraAnimation = null;
     camera.position.copy(position);
     controls.target.copy(center);
     controls.minDistance = extent * 0.15;
@@ -386,6 +380,8 @@ function publishRoomsAnalysis() {
     localStorage.setItem(`roomark:rooms:${initialModelUrl}`, JSON.stringify(metadata));
   } catch {}
   window.dispatchEvent(new CustomEvent("rooms-analyzed", { detail: roomsAnalysis }));
+  renderModelNotes();
+  positionModelNotes();
   console.table(
     roomsAnalysis.rooms.map(({ id, name, type, area, confidence, objectIds }) => ({
       id,
@@ -721,16 +717,21 @@ noteLayer.className = "model-note-layer";
 noteLayer.hidden = pageParams.has("preview");
 viewer.append(noteLayer);
 let modelNotes = [];
+let roomModelNoteIds = new Set();
 let activeModelNoteId = null,
   draggedModelPin = null,
   draggedModelNote = null,
   draggedModelPosition = null,
   modelPinDragMoved = false;
 function renderModelNotes() {
+  roomModelNoteIds = new Set(modelNotes
+    .filter((note) => !selectedRoomId || (window.RoomarkSpatial?.noteRoomId?.(note) ?? note.roomId) === selectedRoomId)
+    .map((note) => note.id));
+  if (!roomModelNoteIds.has(activeModelNoteId)) activeModelNoteId = null;
   noteLayer.innerHTML = modelNotes
     .map(
       (note, index) =>
-        `<button class="model-note-pin" type="button" data-model-note="${note.id}" aria-label="Открыть замечание ${index + 1}"><span>${index + 1}</span></button>`
+        `<button class="model-note-pin" type="button" data-model-note="${note.id}" ${roomModelNoteIds.has(note.id) ? "" : "hidden"} aria-label="Открыть замечание ${index + 1}"><span>${index + 1}</span></button>`
     )
     .join("");
   const note = modelNotes.find(({ id }) => id === activeModelNoteId);
@@ -946,6 +947,7 @@ renderer.domElement.addEventListener("dblclick", async (event) => {
   if (!window.dispatchEvent(alignmentPointEvent)) return;
 
   pendingPinPosition = position;
+  // Opening the form must not depend on room analysis or the spatial helper being ready.
   pendingPinRoomId = selectedRoomId || window.NOTE_ROOM_ID || null;
   pendingPinDeleteId = null;
   pinForm.reset();
@@ -1025,19 +1027,7 @@ pinForm.addEventListener("submit", async (event) => {
 });
 function resolveRoom(roomKey) {
   if (!roomsAnalysis?.success) return null;
-  const key = String(roomKey || "").toLowerCase(),
-    aliases = {
-      kitchen: /kitchen|living|кух|гостин/i,
-      bedroom: /bed|спаль/i,
-      bathroom: /bath|wc|сануз|ванн/i,
-      hall: /hall|corridor|прихож|коридор/i,
-      terrace: /terrace|balcony|террас|балкон/i,
-    };
-  return (
-    roomsAnalysis.rooms.find(
-      (room) => room.id === roomKey || room.type === roomKey || room.name.toLowerCase() === key
-    ) || roomsAnalysis.rooms.find((room) => aliases[key]?.test(`${room.type} ${room.name}`))
-  );
+  return roomsAnalysis.rooms.find((room) => room.id === roomKey) || null;
 }
 let selectedRoomId = null,
   isolatedRoomId = null;
@@ -1171,6 +1161,8 @@ window.showAllRooms = () => {
   clearRoomClipping();
   isolatedRoomId = null;
   selectedRoomId = null;
+  renderModelNotes();
+  positionModelNotes();
   controls.minDistance = defaultMinDistance;
   controls.maxDistance = defaultMaxDistance;
   house.traverse((object) => {
@@ -1191,6 +1183,8 @@ window.showRoom = (roomKey) => {
   clearRoomClipping();
   isolatedRoomId = null;
   selectedRoomId = room.id;
+  renderModelNotes();
+  positionModelNotes();
   house.traverse((object) => {
     if (!object.isMesh) return;
     if (object.userData.roomAnalyzerVisible === undefined)
@@ -1210,6 +1204,8 @@ window.isolateRoom = (roomKey) => {
   if (!house || !room) return false;
   isolatedRoomId = room.id;
   selectedRoomId = room.id;
+  renderModelNotes();
+  positionModelNotes();
   clearRoomClipping();
   house.traverse((object) => {
     if (!object.isMesh) return;
@@ -1330,7 +1326,7 @@ function positionModelNotes() {
           )
       );
     point.project(camera);
-    const visible = point.z > -1 && point.z < 1;
+    const visible = roomModelNoteIds.has(note.id) && point.z > -1 && point.z < 1;
     pin.hidden = !visible;
     pin.style.left = `${(point.x + 1) * 50}%`;
     pin.style.top = `${(1 - point.y) * 50}%`;

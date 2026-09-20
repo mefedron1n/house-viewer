@@ -11,6 +11,7 @@
   const projectId = new URLSearchParams(location.search).get("project"),
     projectQuery = projectId ? `?project=${encodeURIComponent(projectId)}` : "";
   let rooms = window.AUTO_ROOMS?.length ? window.AUTO_ROOMS : window.HOUSE_ROOMS,
+    catalogRevision = 0,
     roomBySlug = {},
     roomById = {};
   const esc = (value) =>
@@ -20,8 +21,13 @@
         ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]
     );
   const indexRooms = () => {
+    catalogRevision++;
+    const analyzedById = new Map((window.AUTO_ROOMS || []).map((room) => [room.id, room]));
+    rooms = rooms.map((room) => ({ ...analyzedById.get(room.id), ...room }));
     roomBySlug = Object.fromEntries(rooms.map((room) => [room.slug, room]));
     roomById = Object.fromEntries(rooms.map((room) => [room.id, room]));
+    window.HOUSE_ROOMS = rooms;
+    window.dispatchEvent(new CustomEvent("room-catalog-changed", { detail: { rooms } }));
   };
   indexRooms();
   const page = document.getElementById("room-page"),
@@ -33,8 +39,8 @@
     selectedTab = "overview",
     photoFilter = "all",
     selectedFiles = [];
-  const roomOverridesKey = "roomark:room-overrides";
-  const deletedRoomsKey = "roomark:deleted-rooms";
+  const roomOverridesKey = `roomark:room-overrides${projectId ? `:${projectId}` : ""}`;
+  const deletedRoomsKey = `roomark:deleted-rooms${projectId ? `:${projectId}` : ""}`;
   const readStoredObject = (key, fallback) => {
     try {
       return JSON.parse(localStorage.getItem(key)) || fallback;
@@ -83,13 +89,31 @@
     else closeRoom(false);
   };
 
-  async function loadData() {
+  let dataRequest = 0;
+  async function loadData(catalog = null) {
+    const requestId = ++dataRequest;
+    const initialRevision = catalogRevision;
     try {
-      const catalogResponse = await fetchApi(`${API_URL}/api/rooms`, { cache: "no-store" });
-      if (catalogResponse.ok && !window.AUTO_ROOMS?.length) {
-        rooms = await catalogResponse.json();
-        indexRooms();
-        window.HOUSE_ROOMS = rooms;
+      if (!catalog) {
+        const response = await fetchApi(`${API_URL}/api/rooms${projectQuery}`, { cache: "no-store" });
+        if (response.ok) catalog = await response.json();
+      }
+      if (requestId !== dataRequest || initialRevision !== catalogRevision) return;
+      if (catalog && (projectId || !window.AUTO_ROOMS?.length)) {
+        rooms = catalog;
+        if (!projectId) applyLocalRoomChanges();
+        else indexRooms();
+        if (selectedRoom) {
+          selectedRoom = roomById[selectedRoom.id] || null;
+          if (!selectedRoom) closeRoom();
+        }
+        renderSidebar();
+        if (selectedRoom) {
+          renderProjectCard(selectedRoom);
+          if (page.classList.contains("active")) renderRoom();
+          window.showRoom?.(selectedRoom.id);
+          window.focusRoom?.(selectedRoom.id);
+        }
         const routeSlug = currentRoute().split("/")[2];
         if (!selectedRoom && routeSlug && roomBySlug[routeSlug])
           openRoom(roomBySlug[routeSlug], false);
@@ -97,27 +121,32 @@
     } catch {
       /* Используем встроенный список, если API временно недоступен. */
     }
+    const revision = catalogRevision;
     const results = await Promise.all(
       rooms.map(async (room) => {
         try {
-          const response = await fetchApi(`${API_URL}/api/rooms/${room.id}`, { cache: "no-store" });
+          const response = await fetchApi(`${API_URL}/api/rooms/${room.id}${projectQuery}`, { cache: "no-store" });
           return [room.id, response.ok ? await response.json() : {}];
         } catch {
           return [room.id, {}];
         }
       })
     );
-    manifests = Object.fromEntries(results);
+    if (requestId !== dataRequest || revision !== catalogRevision) return;
+    let loadedNotes = [];
     try {
       const response = await fetchApi(`${API_URL}/api/notes${projectQuery}`, { cache: "no-store" });
-      notes = response.ok ? await response.json() : [];
+      loadedNotes = response.ok ? await response.json() : [];
     } catch {
-      notes = [];
+      /* Материалы комнат остаются доступны при ошибке загрузки замечаний. */
     }
+    if (requestId !== dataRequest || revision !== catalogRevision) return;
+    manifests = Object.fromEntries(results);
+    notes = loadedNotes;
     renderSidebar();
     if (selectedRoom) {
       renderProjectCard(selectedRoom);
-      if (!selectedRoom.automatic) renderRoom();
+      if (page.classList.contains("active")) renderRoom();
     }
   }
   function roomCounts(room) {
@@ -553,15 +582,15 @@
     const password = actionPassword("Введите пароль для удаления комнаты:");
     if (!password) return;
     try {
-      const response = await fetchApi(`${API_URL}/api/rooms/${encodeURIComponent(room.id)}`, {
+      const response = await fetchApi(`${API_URL}/api/rooms/${encodeURIComponent(room.id)}${projectQuery}`, {
         method: "DELETE",
         headers: { "X-Upload-Password": passwordHeader(password) },
       });
-      if (!response.ok && !(room.automatic && response.status === 404)) {
+      if (!response.ok && !(!projectId && room.automatic && response.status === 404)) {
         const result = await response.json().catch(() => ({}));
         throw new Error(result.error || "Не удалось удалить комнату.");
       }
-      if (room.automatic) {
+      if (!projectId && room.automatic) {
         const deleted = new Set(readStoredObject(deletedRoomsKey, []));
         deleted.add(room.id);
         localStorage.setItem(deletedRoomsKey, JSON.stringify([...deleted]));
@@ -592,8 +621,8 @@
     try {
       const response = await fetchApi(
         editingRoom
-          ? `${API_URL}/api/rooms/${encodeURIComponent(editingRoom.id)}`
-          : `${API_URL}/api/rooms`,
+          ? `${API_URL}/api/rooms/${encodeURIComponent(editingRoom.id)}${projectQuery}`
+          : `${API_URL}/api/rooms${projectQuery}`,
         {
           method: editingRoom ? "PATCH" : "POST",
           headers: {
@@ -604,9 +633,9 @@
         }
       );
       let room = await response.json().catch(() => ({}));
-      if (!response.ok && !(editingRoom?.automatic && response.status === 404))
+      if (!response.ok && !(!projectId && editingRoom?.automatic && response.status === 404))
         throw new Error(room.error || "Не удалось сохранить помещение.");
-      if (editingRoom?.automatic && response.status === 404) {
+      if (!projectId && editingRoom?.automatic && response.status === 404) {
         room = { ...editingRoom, name, area, icon, description };
         saveLocalRoomOverride(room);
       }
@@ -619,7 +648,7 @@
       renderSidebar();
       if (editingRoom) {
         renderProjectCard(room);
-        if (!room.automatic) renderRoom();
+        if (page.classList.contains("active")) renderRoom();
       } else openRoom(room);
     } catch (error) {
       state.textContent = error.message || "Потеря соединения.";
@@ -655,7 +684,7 @@
     const data = new FormData();
     data.append("file", file);
     try {
-      const response = await fetchApi(`${API_URL}/api/rooms/${selectedRoom.id}/assets/floorplan`, {
+      const response = await fetchApi(`${API_URL}/api/rooms/${selectedRoom.id}/assets/floorplan${projectQuery}`, {
           method: "POST",
           headers: { "X-Upload-Password": passwordHeader(password) },
           body: data,
@@ -722,7 +751,8 @@
   function uploadPhoto(data, password, index, total) {
     return new Promise((resolve, reject) => {
       const request = new XMLHttpRequest();
-      request.open("POST", `${API_URL}/api/rooms/${selectedRoom.id}/assets/photo`);
+      request.withCredentials = true;
+      request.open("POST", `${API_URL}/api/rooms/${selectedRoom.id}/assets/photo${projectQuery}`);
       request.setRequestHeader("X-Upload-Password", passwordHeader(password));
       request.upload.onprogress = (event) => {
         if (event.lengthComputable)
@@ -762,7 +792,7 @@
       for (let index = 0; index < files.length; index++) {
         const data = new FormData();
         data.append("file", files[index]);
-        const response = await fetchApi(`${API_URL}/api/rooms/${selectedRoom.id}/assets/render`, {
+        const response = await fetchApi(`${API_URL}/api/rooms/${selectedRoom.id}/assets/render${projectQuery}`, {
           method: "POST",
           headers: { "X-Upload-Password": passwordHeader(password) },
           body: data,
@@ -796,7 +826,7 @@
     try {
       const data = new FormData();
       data.append("file", file);
-      const response = await fetchApi(`${API_URL}/api/rooms/${selectedRoom.id}/assets/model`, {
+      const response = await fetchApi(`${API_URL}/api/rooms/${selectedRoom.id}/assets/model${projectQuery}`, {
         method: "POST",
         headers: { "X-Upload-Password": passwordHeader(password) },
         body: data,
@@ -867,20 +897,38 @@
       else closeRoom(false);
     });
   } catch {}
-  window.addEventListener("rooms-analyzed", (event) => {
-    rooms = event.detail.rooms.map((room) => ({
+  let analysisRequest = 0;
+  window.addEventListener("rooms-analyzed", async (event) => {
+    const requestId = ++analysisRequest;
+    const revision = catalogRevision;
+    ++dataRequest;
+    const analyzedRooms = event.detail.rooms.map((room) => ({
       id: room.id,
       slug: room.id,
       name: room.name,
-      area: Number(room.area.toFixed(1)),
+      area: Number(Number(room.area || 0).toFixed(1)),
+      storeyId: room.storeyId,
       type: room.type,
       confidence: room.confidence,
       automatic: true,
     }));
-    window.HOUSE_ROOMS = rooms;
-    indexRooms();
-    renderSidebar();
-    window.dispatchEvent(new CustomEvent("room-catalog-changed", { detail: { rooms } }));
+    if (projectId) {
+      try {
+        const response = await fetchApi(`${API_URL}/api/rooms/analyzed${projectQuery}`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rooms: analyzedRooms }),
+        });
+        if (!response.ok) throw new Error("Не удалось сохранить список помещений.");
+        const catalog = await response.json();
+        if (requestId !== analysisRequest) return;
+        await loadData(revision === catalogRevision ? catalog : null);
+      } catch (error) { showToast(error.message); }
+    } else {
+      rooms = analyzedRooms;
+      applyLocalRoomChanges();
+      renderSidebar();
+      loadData();
+    }
   });
   const route = currentRoute();
   if (route.startsWith("/rooms/")) selectedRoom = roomBySlug[route.split("/")[2]] || null;

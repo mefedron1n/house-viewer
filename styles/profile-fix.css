@@ -1,11 +1,62 @@
 .studio-header .profile {
+  position: relative;
   gap: 0;
 }
 .studio-header .profile > .profile-trigger {
   width: auto;
+  min-height: 40px;
+  padding: 0 8px 0 15px;
+  color: #292a25;
+  background: rgba(235, 231, 222, 0.8);
+  border: 1px solid rgba(71, 68, 59, 0.08);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.studio-header .profile > .profile-trigger strong {
+  width: 27px;
+  height: 27px;
+  color: #3f2a08;
+  background: #f2a31b;
+  font-size: 10px;
+}
+.studio-header .profile > .profile-menu {
+  z-index: 80;
+  top: calc(100% + 10px);
+  width: 238px;
+  padding: 8px;
+  color: #2c2c26;
+  background: #fffdf8;
+  border-color: #e0d8cc;
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(55, 47, 34, 0.16);
+}
+.studio-header .profile > .profile-menu-user {
+  padding: 10px 11px;
+  border-color: #e6ded2;
+}
+.studio-header .profile > .profile-menu > a,
+.studio-header .profile > .profile-menu > button {
+  gap: 10px;
+  padding: 10px 11px;
+  color: #3b3b34;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.studio-header .profile > .profile-menu > a span,
+.studio-header .profile > .profile-menu > button span {
+  width: auto;
   height: auto;
-  color: var(--color-text-secondary);
-  background: transparent;
+  border: 0;
   border-radius: 0;
-  font-size: 14px;
+}
+.studio-header .profile > .profile-menu > a:hover,
+.studio-header .profile > .profile-menu > button:hover {
+  background: #f4efe5;
+}
+.studio-header .profile > .profile-menu > button {
+  margin-top: 4px;
+  color: #a34d3f;
+  border-top-color: #e6ded2;
+  border-radius: 8px;
 }

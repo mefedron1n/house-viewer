@@ -1,7 +1,7 @@
 if (!document.querySelector('link[href*="profile-fix.css"]')) {
   const profileStyles = document.createElement("link");
   profileStyles.rel = "stylesheet";
-  profileStyles.href = "./styles/profile-fix.css?v=1";
+  profileStyles.href = "./styles/profile-fix.css?v=2";
   document.head.append(profileStyles);
 }
 

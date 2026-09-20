@@ -10,6 +10,7 @@ import { rateLimit } from "express-rate-limit";
 import { promisify } from "node:util";
 import { ConversionQueue } from "./conversion-queue.js";
 import { createStorage } from "./storage/index.js";
+import { ProjectRoomStore, validRoomId } from "./project-rooms.js";
 import { config } from "./config.js";
 import { normalizeImage, validateGlbFile, validateIfcFile, validatePdfFile } from "./file-validation.js";
 import { buildRoomConnections, linkBoundary, linkNearbyElements, resolveProxyType, runIfcAnalyzer } from "./ifc-analysis.js";
@@ -62,6 +63,13 @@ try {
   if (error.code !== "ENOENT" && !(error instanceof SyntaxError)) throw error;
 }
 const roomIds = new Set(roomCatalog.keys());
+const legacyRoomScope = { catalog: roomCatalog, ids: roomIds, root: roomRoot, projectId: null };
+const projectRoomStore = new ProjectRoomStore(root);
+async function roomScope(req) {
+  return req.query.project
+    ? projectRoomStore.get(safeProjectId(req.query.project), req.user.id)
+    : legacyRoomScope;
+}
 const activeChildren = new Set();
 const safeId = (id) => (/^[a-f0-9]{32}$/.test(id || "") ? id : null);
 const stage = (job, status, text) => {
@@ -541,6 +549,7 @@ async function requireProjectOwner(req, res, next) {
   } catch (error) { next(error); }
 }
 app.use("/api/notes", requireProjectOwner);
+app.use("/api/rooms", requireProjectOwner);
 app.use("/api/project", requireProjectOwner);
 app.use("/api/project/:projectId/floorplan", requireProjectOwner);
 
@@ -1193,8 +1202,12 @@ for (const [route, file] of [
       });
     } catch (error) { next(error); }
   });
-const publicRoomAsset = (room, filename, version) =>
-  `/api/rooms/${room}/assets/${encodeURIComponent(filename)}${version ? `?v=${Math.trunc(version)}` : ""}`;
+const publicRoomAsset = (room, filename, version, scope = legacyRoomScope) => {
+  const query = new URLSearchParams();
+  if (scope.projectId) query.set("project", scope.projectId);
+  if (version) query.set("v", Math.trunc(version));
+  return `/api/rooms/${encodeURIComponent(room)}/assets/${encodeURIComponent(filename)}${query.size ? `?${query}` : ""}`;
+};
 const projectFloorplanName = (name) => /^floorplan\.(jpg|jpeg|png|webp)$/.test(name);
 const spatialProjectRoot = (projectId) =>
   projectId ? path.join(root, "project-spatial", projectId) : projectRoot;
@@ -1324,7 +1337,8 @@ app.put("/api/project/floorplan-calibration", requireUploadPassword, async (req,
     next(error);
   }
 });
-async function saveRooms() {
+async function saveRooms(scope = legacyRoomScope) {
+  if (scope.projectId) return projectRoomStore.save(scope);
   await fs.mkdir(root, { recursive: true });
   const temporary = `${roomsFile}.${crypto.randomBytes(5).toString("hex")}.tmp`;
   await fs.writeFile(temporary, JSON.stringify([...roomCatalog.values()], null, 2), {
@@ -1332,24 +1346,24 @@ async function saveRooms() {
   });
   await fs.rename(temporary, roomsFile);
 }
-async function readRoomMedia(room) {
+async function readRoomMedia(room, scope = legacyRoomScope) {
   try {
-    const value = JSON.parse(await fs.readFile(path.join(roomRoot, room, "media.json"), "utf8"));
+    const value = JSON.parse(await fs.readFile(path.join(scope.root, room, "media.json"), "utf8"));
     return Array.isArray(value) ? value : [];
   } catch (error) {
     if (error.code === "ENOENT" || error instanceof SyntaxError) return [];
     throw error;
   }
 }
-async function writeRoomMedia(room, media) {
-  const dir = path.join(roomRoot, room);
+async function writeRoomMedia(room, media, scope = legacyRoomScope) {
+  const dir = path.join(scope.root, room);
   await fs.mkdir(dir, { recursive: true });
   const temporary = path.join(dir, `media-${crypto.randomBytes(5).toString("hex")}.tmp`);
   await fs.writeFile(temporary, JSON.stringify(media, null, 2), { mode: 0o640 });
   await fs.rename(temporary, path.join(dir, "media.json"));
 }
-export async function roomManifest(room) {
-  const dir = path.join(roomRoot, room);
+export async function roomManifest(room, scope = legacyRoomScope) {
+  const dir = path.join(scope.root, room);
   const files = await fs.readdir(dir).catch(() => []);
   const floorplan = files.find((name) => name.startsWith("floorplan."));
   const model = files.includes("model.glb") ? "model.glb" : null;
@@ -1365,7 +1379,7 @@ export async function roomManifest(room) {
   );
   const floorplanModified = floorplan ? (await fs.stat(path.join(dir, floorplan))).mtimeMs : null;
   const modelModified = model ? (await fs.stat(path.join(dir, model))).mtimeMs : null;
-  const metadata = await readRoomMedia(room);
+  const metadata = await readRoomMedia(room, scope);
   const photos = await Promise.all(
     photoFiles.map(async (name) => {
       const modified = (await fs.stat(path.join(dir, name))).mtimeMs,
@@ -1373,8 +1387,8 @@ export async function roomManifest(room) {
       return {
         id: saved.id || path.parse(name).name,
         roomId: room,
-        url: publicRoomAsset(room, name, modified),
-        thumbnailUrl: publicRoomAsset(room, name, modified),
+        url: publicRoomAsset(room, name, modified, scope),
+        thumbnailUrl: publicRoomAsset(room, name, modified, scope),
         type: saved.type || "other",
         date: saved.date || new Date(modified).toISOString().slice(0, 10),
         comment: saved.comment || "",
@@ -1384,18 +1398,44 @@ export async function roomManifest(room) {
     })
   );
   return {
-    floorplanUrl: floorplan ? publicRoomAsset(room, floorplan, floorplanModified) : null,
-    modelUrl: model ? publicRoomAsset(room, model, modelModified) : null,
+    floorplanUrl: floorplan ? publicRoomAsset(room, floorplan, floorplanModified, scope) : null,
+    modelUrl: model ? publicRoomAsset(room, model, modelModified, scope) : null,
     renderUrls: datedRenders
       .sort((a, b) => a.modified - b.modified || a.name.localeCompare(b.name))
-      .map(({ name, modified }) => publicRoomAsset(room, name, modified)),
+      .map(({ name, modified }) => publicRoomAsset(room, name, modified, scope)),
     photos: photos.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     photoUrls: photos.map(({ url }) => url),
   };
 }
-app.get("/api/rooms", (_, res) => {
+app.use("/api/rooms", async (req, res, next) => {
+  try { req.rooms = await roomScope(req); next(); }
+  catch (error) { next(error); }
+});
+// IFC catalogs are loaded from project metadata. Geometry-only models can supply
+// their analyzed catalog as the authenticated project owner.
+app.post("/api/rooms/analyzed", async (req, res, next) => {
+  if (!req.rooms.projectId) return res.status(400).json({ error: "Укажите проект." });
+  const rooms = req.body.rooms;
+  if (!Array.isArray(rooms) || rooms.length > 1000 || rooms.some((room) =>
+    !room || !validRoomId(room.id) || !plainLabel(room.name, 60) ||
+    !Number.isFinite(Number(room.area)) || Number(room.area) < 0 || Number(room.area) > 100000))
+    return res.status(400).json({ error: "Некорректный список помещений." });
+  try {
+    for (const room of rooms) {
+      if (req.rooms.deleted.has(room.id) || req.rooms.catalog.has(room.id)) continue;
+      req.rooms.catalog.set(room.id, {
+        id: room.id, slug: room.id, name: plainLabel(room.name, 60),
+        area: Number(room.area), type: plainLabel(room.type, 40), automatic: true,
+      });
+      req.rooms.ids.add(room.id);
+    }
+    await saveRooms(req.rooms);
+    res.json([...req.rooms.catalog.values()]);
+  } catch (error) { next(error); }
+});
+app.get("/api/rooms", (req, res) => {
   res.set("Cache-Control", "no-store");
-  res.json([...roomCatalog.values()]);
+  res.json([...req.rooms.catalog.values()]);
 });
 app.post("/api/rooms", requireUploadPassword, async (req, res, next) => {
   try {
@@ -1420,7 +1460,7 @@ app.post("/api/rooms", requireUploadPassword, async (req, res, next) => {
       ]),
       icon = allowedIcons.has(req.body.icon) ? req.body.icon : "living-room",
       description = plainLabel(req.body.description, 500);
-    if (!name || name.length > 60 || area < 0 || area > 10000)
+    if (!name || name.length > 60 || !Number.isFinite(area) || area < 0 || area > 10000)
       return res.status(400).json({ error: "Укажите название комнаты и корректную площадь." });
     const translit = {
       а: "a",
@@ -1464,14 +1504,15 @@ app.post("/api/rooms", requireUploadPassword, async (req, res, next) => {
         .slice(0, 34) || "room";
     let slug = base,
       suffix = 2;
-    while ([...roomCatalog.values()].some((room) => room.slug === slug))
+    while ([...req.rooms.catalog.values()].some((room) => room.slug === slug))
       slug = `${base}-${suffix++}`;
     const id = slug,
       room = { id, slug, name, area, icon, description, createdAt: new Date().toISOString() };
-    roomCatalog.set(id, room);
-    roomIds.add(id);
-    await saveRooms();
-    await fs.mkdir(path.join(roomRoot, id), { recursive: true });
+    req.rooms.catalog.set(id, room);
+    req.rooms.ids.add(id);
+    req.rooms.deleted?.delete(id);
+    await saveRooms(req.rooms);
+    await fs.mkdir(path.join(req.rooms.root, id), { recursive: true });
     res.status(201).json(room);
   } catch (error) {
     next(error);
@@ -1479,7 +1520,7 @@ app.post("/api/rooms", requireUploadPassword, async (req, res, next) => {
 });
 app.patch("/api/rooms/:room", requireUploadPassword, async (req, res, next) => {
   try {
-    const current = roomCatalog.get(req.params.room);
+    const current = req.rooms.catalog.get(req.params.room);
     if (!current) return res.status(404).json({ error: "Комната не найдена." });
     const name = plainLabel(req.body.name, 60),
       description = plainLabel(req.body.description, 500),
@@ -1505,8 +1546,8 @@ app.patch("/api/rooms/:room", requireUploadPassword, async (req, res, next) => {
     if (!name || !Number.isFinite(area) || area < 0 || area > 10000)
       return res.status(400).json({ error: "Укажите название комнаты и корректную площадь." });
     const room = { ...current, name, area, icon, description };
-    roomCatalog.set(room.id, room);
-    await saveRooms();
+    req.rooms.catalog.set(room.id, room);
+    await saveRooms(req.rooms);
     res.json(room);
   } catch (error) {
     next(error);
@@ -1514,33 +1555,34 @@ app.patch("/api/rooms/:room", requireUploadPassword, async (req, res, next) => {
 });
 app.delete("/api/rooms/:room", requireUploadPassword, async (req, res, next) => {
   try {
-    if (!roomCatalog.has(req.params.room))
+    if (!req.rooms.catalog.has(req.params.room))
       return res.status(404).json({ error: "Комната не найдена." });
-    roomCatalog.delete(req.params.room);
-    roomIds.delete(req.params.room);
-    await saveRooms();
-    await fs.rm(path.join(roomRoot, req.params.room), { recursive: true, force: true });
-    await updateNotes((notes) => notes.filter((note) => note.roomId !== req.params.room));
+    req.rooms.catalog.delete(req.params.room);
+    req.rooms.ids.delete(req.params.room);
+    req.rooms.deleted?.add(req.params.room);
+    await saveRooms(req.rooms);
+    await fs.rm(path.join(req.rooms.root, req.params.room), { recursive: true, force: true });
+    await updateNotes((notes) => notes.filter((note) => note.roomId !== req.params.room || (note.projectId || null) !== req.rooms.projectId));
     res.status(204).end();
   } catch (error) {
     next(error);
   }
 });
 app.get("/api/rooms/:room", async (req, res) => {
-  if (!roomIds.has(req.params.room)) return res.status(404).json({ error: "Комната не найдена." });
+  if (!req.rooms.ids.has(req.params.room)) return res.status(404).json({ error: "Комната не найдена." });
   res.set("Cache-Control", "no-store");
-  res.json(await roomManifest(req.params.room));
+  res.json(await roomManifest(req.params.room, req.rooms));
 });
 app.get("/api/rooms/:room/assets/:filename", (req, res) => {
   if (
-    !roomIds.has(req.params.room) ||
+    !req.rooms.ids.has(req.params.room) ||
     !/^(floorplan\.(jpg|jpeg|png|webp)|model\.glb|render-[a-f0-9]{16}\.(jpg|jpeg|png|webp)|photo-[a-f0-9]{16}\.(jpg|jpeg|png|webp|pdf))$/.test(
       req.params.filename
     )
   )
     return res.status(404).end();
-  res.set("Cache-Control", "public, max-age=3600");
-  res.sendFile(req.params.filename, { root: path.join(roomRoot, req.params.room) }, (error) => {
+  res.set("Cache-Control", req.rooms.projectId ? "private, no-cache" : "public, max-age=3600");
+  res.sendFile(req.params.filename, { root: path.join(req.rooms.root, req.params.room) }, (error) => {
     if (error && !res.headersSent) res.status(404).end();
   });
 });
@@ -1553,7 +1595,7 @@ app.post(
     let normalized;
     try {
       const { room, kind } = req.params;
-      if (!roomIds.has(room)) return res.status(404).json({ error: "Комната не найдена." });
+      if (!req.rooms.ids.has(room)) return res.status(404).json({ error: "Комната не найдена." });
       if (!req.file || !["floorplan", "render", "photo", "model"].includes(kind))
         return res.status(400).json({ error: "Выберите тип материала и файл." });
       let ext;
@@ -1576,7 +1618,7 @@ app.post(
           maxPixels: config.maxImagePixels,
         }));
       }
-      const dir = path.join(roomRoot, room);
+      const dir = path.join(req.rooms.root, room);
       await fs.mkdir(dir, { recursive: true });
       let filename;
       if (kind === "floorplan") {
@@ -1590,7 +1632,7 @@ app.post(
       else normalized = null;
       if (kind === "photo") {
         const allowedTypes = new Set(["construction", "completed", "defect", "control", "other"]),
-          media = await readRoomMedia(room),
+          media = await readRoomMedia(room, req.rooms),
           createdAt = new Date().toISOString();
         media.push({
           id: path.parse(filename).name,
@@ -1605,9 +1647,9 @@ app.post(
             .slice(0, 500),
           createdAt,
         });
-        await writeRoomMedia(room, media);
+        await writeRoomMedia(room, media, req.rooms);
       }
-      res.status(201).json(await roomManifest(room));
+      res.status(201).json(await roomManifest(room, req.rooms));
     } catch (error) {
       next(error);
     } finally {
@@ -1618,20 +1660,21 @@ app.post(
     }
   }
 );
-export async function deleteRoomAsset(room, filename) {
+export async function deleteRoomAsset(room, filename, scope = legacyRoomScope) {
   if (
-    !roomIds.has(room) ||
+    !scope.ids.has(room) ||
     !/^(floorplan\.(jpg|jpeg|png|webp)|model\.glb|render-[a-f0-9]{16}\.(jpg|jpeg|png|webp)|photo-[a-f0-9]{16}\.(jpg|jpeg|png|webp|pdf))$/.test(
       filename
     )
   )
     return false;
   try {
-    await fs.unlink(path.join(roomRoot, room, filename));
+    await fs.unlink(path.join(scope.root, room, filename));
     if (filename.startsWith("photo-"))
       await writeRoomMedia(
         room,
-        (await readRoomMedia(room)).filter((item) => item.filename !== filename)
+        (await readRoomMedia(room, scope)).filter((item) => item.filename !== filename),
+        scope
       );
     return true;
   } catch (error) {
@@ -1642,9 +1685,9 @@ export async function deleteRoomAsset(room, filename) {
 app.delete("/api/rooms/:room/assets/:filename", requireUploadPassword, async (req, res, next) => {
   try {
     const { room, filename } = req.params;
-    if (!(await deleteRoomAsset(room, filename)))
+    if (!(await deleteRoomAsset(room, filename, req.rooms)))
       return res.status(404).json({ error: "Материал не найден." });
-    res.json(await roomManifest(room));
+    res.json(await roomManifest(room, req.rooms));
   } catch (error) {
     next(error);
   }
@@ -1689,9 +1732,13 @@ app.post("/api/notes", requireUploadPassword, async (req, res, next) => {
     const text = typeof req.body.text === "string" ? req.body.text.trim() : "";
     if (!text || text.length > 500)
       return res.status(400).json({ error: "Заметка должна содержать от 1 до 500 символов." });
-    const roomId = roomIds.has(req.body.roomId) ? req.body.roomId : null;
     const source = req.body.source === "room-media" ? "room-media" : "model";
     const coordinateSpace = req.body.coordinateSpace === "model-world-v1" ? "model-world-v1" : "legacy-normalized-v1";
+    // Model room IDs (including IFC GUIDs) are not in the manually maintained room catalog.
+    const scope = await roomScope(req);
+    const roomId = scope.ids.has(req.body.roomId) ||
+      (coordinateSpace === "model-world-v1" && typeof req.body.roomId === "string" && /^[A-Za-z0-9_$-]{1,128}$/.test(req.body.roomId))
+      ? req.body.roomId : null;
     const position =
       req.body.position &&
       ["x", "y", "z"].every((key) => Number.isFinite(Number(req.body.position[key])))

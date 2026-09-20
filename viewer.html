@@ -343,8 +343,100 @@
       }
       .top-actions {
         display: flex;
+        align-items: center;
         margin-left: auto;
         gap: 6px;
+      }
+      .viewer-profile-menu-host {
+        position: relative;
+      }
+      .viewer-profile-menu-host[hidden] {
+        display: none;
+      }
+      .viewer-profile-menu-host .profile-trigger {
+        display: inline-flex;
+        min-height: 38px;
+        align-items: center;
+        gap: 9px;
+        padding: 0 7px 0 13px;
+        color: #29312b;
+        background: rgba(255, 255, 255, 0.82);
+        border: 1px solid var(--color-border);
+        border-radius: 999px;
+        cursor: pointer;
+        font: 650 12px Inter, ui-sans-serif, system-ui, sans-serif;
+      }
+      .viewer-profile-menu-host .profile-trigger strong {
+        display: grid;
+        width: 27px;
+        height: 27px;
+        color: #3f2a08;
+        background: #f2a31b;
+        border-radius: 50%;
+        font-size: 10px;
+        place-items: center;
+      }
+      .viewer-profile-menu-host .profile-trigger[aria-expanded="true"] {
+        border-color: #e5bb76;
+        box-shadow: 0 0 0 3px rgba(242, 163, 27, 0.12);
+      }
+      .viewer-profile-menu-host .profile-menu {
+        position: absolute;
+        z-index: 90;
+        top: calc(100% + 10px);
+        right: 0;
+        display: grid;
+        width: 238px;
+        padding: 8px;
+        color: #2c2c26;
+        background: #fffdf8;
+        border: 1px solid #e0d8cc;
+        border-radius: 12px;
+        box-shadow: 0 16px 40px rgba(55, 47, 34, 0.16);
+      }
+      .viewer-profile-menu-host .profile-menu[hidden] {
+        display: none;
+      }
+      .viewer-profile-menu-host .profile-menu-user {
+        display: grid;
+        gap: 3px;
+        padding: 10px 11px;
+        border-bottom: 1px solid #e6ded2;
+      }
+      .viewer-profile-menu-host .profile-menu-user strong {
+        font-size: 13px;
+      }
+      .viewer-profile-menu-host .profile-menu-user span {
+        overflow: hidden;
+        color: #74756e;
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .viewer-profile-menu-host .profile-menu > a,
+      .viewer-profile-menu-host .profile-menu > button {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 11px;
+        color: #3b3b34;
+        background: transparent;
+        border: 0;
+        border-radius: 8px;
+        cursor: pointer;
+        font: 13px Inter, ui-sans-serif, system-ui, sans-serif;
+        text-align: left;
+        text-decoration: none;
+      }
+      .viewer-profile-menu-host .profile-menu > a:hover,
+      .viewer-profile-menu-host .profile-menu > button:hover {
+        background: #f4efe5;
+      }
+      .viewer-profile-menu-host .profile-menu > button {
+        margin-top: 4px;
+        color: #a34d3f;
+        border-top: 1px solid #e6ded2;
       }
       .icon-button {
         display: grid;
@@ -2609,9 +2701,9 @@
     <link rel="stylesheet" href="./styles/spatial.css?v=1" />
     <link rel="stylesheet" href="./styles/viewer-reference.css?v=8" />
     <link rel="stylesheet" href="./styles/workspace-pages.css?v=3" />
-    <link rel="stylesheet" href="./styles/viewer-ux.css?v=5" />
-    <link rel="stylesheet" href="./styles/photos-page.css?v=8" />
-    <link rel="stylesheet" href="./styles/plan-notes.css?v=8" />
+    <link rel="stylesheet" href="./styles/viewer-ux.css?v=6" />
+    <link rel="stylesheet" href="./styles/photos-page.css?v=9" />
+    <link rel="stylesheet" href="./styles/plan-notes.css?v=9" />
     <link rel="stylesheet" href="./styles/renders-page.css?v=2" />
   </head>
   <body>
@@ -2619,8 +2711,8 @@
       <div id="viewer" aria-label="Интерактивная 3D-модель"></div>
       <header class="topbar">
         <a class="brand" href="./viewer.html" aria-label="Открыть общую 3D-модель проекта"
-          ><span class="brand-mark"><img src="./images/roomark-logo.png" alt="" /></span
-          ><span>Roomark</span><span class="brand-divider">/</span
+          ><span class="brand-mark"><img class="brand-logo-light" src="./images/roomark-logo.png" alt="" /><img class="brand-logo-dark" src="./images/roomark-logo-dark.svg" alt="" /></span
+          ><span class="brand-name">Roomark</span><span class="brand-divider">/</span
           ><span class="brand-project" id="header-project-name">ЖК Северный</span></a
         >
         <nav class="nav" aria-label="Режимы просмотра">
@@ -2649,6 +2741,7 @@
           </button>
         </nav>
         <div class="top-actions">
+          <div id="viewer-profile-menu-host" class="viewer-profile-menu-host" hidden></div>
           <button id="viewer-help-button" class="help-button" type="button">
             <span aria-hidden="true">?</span> Помощь
           </button>
@@ -2851,7 +2944,7 @@
           </header>
           <div class="plan-notes-workspace">
             <main class="plan-canvas-column">
-              <div class="plan-toolbar"><div class="plan-status-filters"><button class="active" type="button" data-plan-note-filter="all" aria-pressed="true">Все <span data-plan-count="all">0</span></button><button type="button" data-plan-note-filter="open" aria-pressed="false">Открытые <span data-plan-count="open">0</span></button><button type="button" data-plan-note-filter="resolved" aria-pressed="false">Исправленные <span data-plan-count="resolved">0</span></button></div></div>
+              <div class="plan-toolbar"><label class="plan-room-filter"><span>Комната</span><select id="plan-room-filter"><option value="all">Все помещения</option></select></label><div class="plan-status-filters"><button class="active" type="button" data-plan-note-filter="all" aria-pressed="true">Все <span data-plan-count="all">0</span></button><button type="button" data-plan-note-filter="open" aria-pressed="false">Открытые <span data-plan-count="open">0</span></button><button type="button" data-plan-note-filter="resolved" aria-pressed="false">Исправленные <span data-plan-count="resolved">0</span></button></div></div>
               <div class="alignment-controls"><p id="calibration-state" role="status"></p><button id="alignment-save" type="button" hidden>Сохранить совмещение</button><button id="alignment-cancel" type="button" hidden>Отмена</button></div>
               <div id="pin-board" class="pin-board project-plan-board"><div class="workspace-empty"><h3>Загрузите общий план проекта</h3><p>Совместите план с 3D, чтобы увидеть замечания с модели.</p></div></div>
               <div class="plan-canvas-footer"><div class="plan-zoom"><button type="button" data-plan-zoom="out" aria-label="Уменьшить план">−</button><span id="plan-zoom-value">100%</span><button type="button" data-plan-zoom="in" aria-label="Увеличить план">+</button></div><button id="plan-download" class="secondary" type="button">Скачать план</button></div>
@@ -3144,7 +3237,7 @@
                 type="number"
                 min="0"
                 max="10000"
-                step="0.1"
+                step="any"
                 placeholder="18.5"
                 required
             /></label>
@@ -3184,7 +3277,7 @@
       </dialog>
       <div id="loading-screen">
         <div class="loading-brand">
-          <span class="brand-mark"><img src="./images/roomark-logo.png" alt="" /></span>Roomark
+          <span class="brand-mark"><img class="brand-logo-light" src="./images/roomark-logo.png" alt="" /><img class="brand-logo-dark" src="./images/roomark-logo-dark.svg" alt="" /></span>Roomark
         </div>
         <div class="loader"></div>
         <div id="loading-text">Загрузка проекта...</div>
@@ -3198,7 +3291,9 @@
     <script>
       window.MODEL_API_URL = window.HouseConfig.apiBaseUrl;
     </script>
-    <script src="./scripts/rooms-data.js"></script>
+    <script src="./scripts/rooms-data.js?v=2"></script>
+    <script src="./scripts/profile-menu.js?v=3"></script>
+    <script src="./scripts/viewer-auth.js?v=1"></script>
     <script src="./scripts/viewer-project.js?v=2"></script>
     <script>
       window.reportViewerBootError = (message) => {
@@ -3247,10 +3342,10 @@
         );
       });
     </script>
-    <script type="module" src="./scripts/app.js?v=46"></script>
-    <script src="./scripts/spatial.js?v=1"></script>
-    <script src="./scripts/interface.js?v=29"></script>
-    <script src="./scripts/rooms.js?v=8"></script>
+    <script type="module" src="./scripts/app.js?v=50"></script>
+    <script src="./scripts/spatial.js?v=3"></script>
+    <script src="./scripts/interface.js?v=32"></script>
+    <script src="./scripts/rooms.js?v=11"></script>
     <script src="./scripts/viewer-ux.js?v=4"></script>
   </body>
 </html>

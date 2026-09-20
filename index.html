@@ -10,10 +10,13 @@
       content="Интерактивные сайты объектов недвижимости с 3D-моделью, планами, фотографиями и замечаниями."
     />
     <link rel="icon" href="./images/roomark-logo.png" />
-    <link rel="preload" href="./images/editorial-house.webp" as="image" />
+    <link rel="preload" href="./images/roomark-hero-apartment.png" as="image" />
     <link rel="stylesheet" href="./styles/tokens.css?v=3" />
     <link rel="stylesheet" href="./styles/navigation.css?v=2" />
-    <link rel="stylesheet" href="./styles/landing.css?v=1" />
+    <link rel="stylesheet" href="./styles/landing.css?v=3" />
+    <link rel="stylesheet" href="./styles/landing-hero.css?v=1" />
+    <link rel="stylesheet" href="./styles/landing-sections.css?v=1" />
+    <link rel="stylesheet" href="./styles/landing-context.css?v=1" />
     <script src="./scripts/config.js?v=1"></script>
     <script type="importmap">
       {
@@ -24,7 +27,7 @@
       }
     </script>
   </head>
-  <body class="landing-body">
+  <body class="landing-body landing-light">
     <div class="scroll-progress" aria-hidden="true"><span></span></div>
     <header class="roomark-header" data-roomark-header>
       <a class="roomark-header-brand" href="./"
@@ -35,21 +38,23 @@
       </nav>
       <div class="roomark-header-actions">
         <a class="header-login" href="./auth.html">Войти</a>
-        <button class="landing-theme-toggle" type="button" aria-label="Переключить тему">☼</button>
+        <div class="landing-theme-switch" role="group" aria-label="Цветовая тема">
+          <button class="landing-theme-toggle" type="button" data-landing-theme="light" aria-label="Светлая тема" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg></button>
+          <button class="landing-theme-toggle" type="button" data-landing-theme="dark" aria-label="Тёмная тема" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.8 15.4A8.5 8.5 0 0 1 8.6 4.2a8.5 8.5 0 1 0 11.2 11.2Z"/></svg></button>
+        </div>
         <button class="header-menu" type="button" aria-expanded="false" aria-controls="landing-nav">
           ☰
         </button>
       </div>
     </header>
     <main>
-      <section class="landing-hero">
+      <section class="landing-hero" data-view="3d" aria-labelledby="hero-title">
+        <div class="hero-atmosphere" aria-hidden="true"><span class="hero-leaves hero-leaves-top"></span><span class="hero-leaves hero-leaves-bottom"></span></div>
         <div class="hero-copy">
           <p class="hero-kicker hero-enter">Пространство для внимательного взгляда</p>
-          <h1>
-            <span><i>У каждого дома</i></span
-            ><span
-              ><i>должна быть <em>история.</em></i></span
-            >
+          <h1 id="hero-title">
+            <span><i>У каждого</i></span><span><i>дома</i></span>
+            <span><i>должна быть</i></span><span><i><em>история.</em></i></span>
           </h1>
           <p class="hero-lede hero-enter">
             Соберите модель, планы, фотографии и замечания в один спокойный интерактивный сайт
@@ -61,199 +66,136 @@
             ><a href="./viewer.html">Посмотреть пример <span>→</span></a>
           </div>
         </div>
-        <div class="hero-demo hero-enter" data-cursor="drag">
-          <div id="hero-model" aria-label="Интерактивная 3D-модель дома"></div>
-          <button class="hero-hotspot hotspot-kitchen" type="button" aria-expanded="true">
+        <div class="hero-demo hero-enter">
+          <div class="hero-orbit" aria-hidden="true"></div>
+          <div class="hero-note hero-note-plan" aria-hidden="true"><span>Больше, чем<br />планировка</span><svg viewBox="0 0 90 80"><path d="M80 5C43 8 28 33 24 66m-9-13 9 14 13-13"/></svg></div>
+          <div class="hero-model-scene" id="hero-view-panel" role="tabpanel" aria-labelledby="hero-tab-3d">
+          <img class="hero-art" src="./images/roomark-hero-apartment.png" width="1536" height="1024" fetchpriority="high" alt="Изометричная модель квартиры с кухней-гостиной, спальней, санузлом и террасой" />
+          <img class="hero-plan-image" src="./images/hero-floorplan.svg" width="960" height="640" alt="План квартиры: кухня-гостиная слева, спальня и санузел справа, терраса вдоль фасада" hidden />
+          <figure class="hero-photo" hidden><img src="./img/2.jpg" alt="Фотография интерьера квартиры" width="960" height="640" /><figcaption><span>Жизнь в деталях</span>Фото интерьера</figcaption></figure>
+          <div class="hero-hotspots" aria-label="Помещения модели">
+          <button class="hero-hotspot hotspot-kitchen" type="button" data-room-anchor="kitchen" aria-expanded="true">
             <span></span><strong>Кухня-гостиная<small>28,4 м²</small></strong>
           </button>
-          <button class="hero-hotspot hotspot-bedroom" type="button" aria-expanded="true">
+          <button class="hero-hotspot hotspot-bedroom" type="button" data-room-anchor="bedroom" aria-expanded="true">
             <span></span><strong>Спальня<small>12,6 м²</small></strong>
           </button>
-          <button class="hero-hotspot hotspot-bathroom" type="button" aria-expanded="true">
+          <button class="hero-hotspot hotspot-bathroom" type="button" data-room-anchor="bathroom" aria-expanded="true">
             <span></span><strong>Санузел<small>5,3 м²</small></strong>
           </button>
-          <p class="hero-model-status">Загрузка 3D…</p>
+          </div>
+          </div>
+          <div class="hero-note hero-note-explore" aria-hidden="true"><svg viewBox="0 0 100 60"><path d="M93 37C60 56 27 48 12 14m1 17-2-18 18 5"/></svg><span>Исследуйте<br />объект</span></div>
         </div>
         <div class="hero-view-switcher" role="tablist" aria-label="Вид проекта">
-          <button class="active" type="button" role="tab" aria-selected="true" data-hero-view="3d">
+          <button id="hero-tab-3d" class="active" type="button" role="tab" aria-selected="true" aria-controls="hero-view-panel" data-hero-view="3d">
             3D
           </button>
-          <button type="button" role="tab" aria-selected="false" data-hero-view="plan">План</button>
-          <button type="button" role="tab" aria-selected="false" data-hero-view="photo">
+          <button id="hero-tab-plan" type="button" role="tab" aria-selected="false" aria-controls="hero-view-panel" tabindex="-1" data-hero-view="plan">План</button>
+          <button id="hero-tab-photo" type="button" role="tab" aria-selected="false" aria-controls="hero-view-panel" tabindex="-1" data-hero-view="photo">
             Фото
           </button>
         </div>
-        <p class="hero-drag-hint"><span aria-hidden="true">↕</span> Перетащите, чтобы осмотреть</p>
-      </section>
-      <section class="manifesto" data-highlight>
-        <p>01 / Зачем</p>
-        <blockquote>
-          <span>Не ещё одна папка с файлами.</span
-          ><strong>Цельный образ проекта,<br />который растёт вместе с домом.</strong>
-        </blockquote>
-      </section>
-      <section id="possibilities" class="feature-showcase">
-        <div class="feature-preview" data-cursor="open">
-          <div class="feature-screen active" data-screen="space">
-            <div class="mini-house">ROOMARK <span>3D</span></div>
-          </div>
-          <div class="feature-screen" data-screen="history">
-            <img src="./images/editorial-house.webp" alt="Архитектурный проект" />
-            <div class="photo-strip"><i></i><i></i><i></i></div>
-          </div>
-          <div class="feature-screen" data-screen="notes">
-            <div class="note-plan"><button>1</button><button>2</button><button>3</button></div>
-          </div>
-        </div>
-        <div class="feature-copy">
-          <p class="section-label">Всё на своём месте</p>
-          <h2>Один адрес<br />для всего проекта</h2>
-          <button class="feature-step active" data-feature="space">
-            <b>01</b
-            ><span
-              ><strong>Покажите пространство</strong
-              ><small>Интерактивная модель связывает комнаты, планы и ракурсы.</small></span
-            ></button
-          ><button class="feature-step" data-feature="history">
-            <b>02</b
-            ><span
-              ><strong>Сохраните ход работы</strong
-              ><small>Фотографии и рендеры складываются в ясную историю объекта.</small></span
-            ></button
-          ><button class="feature-step" data-feature="notes">
-            <b>03</b
-            ><span
-              ><strong>Обсуждайте по существу</strong
-              ><small>Замечания остаются на модели и плане вместе с контекстом.</small></span
-            >
-          </button>
+        <div class="hero-benefits hero-enter" aria-label="Возможности Roomark">
+          <p><svg viewBox="0 0 32 32" aria-hidden="true"><path d="m16 3 12 7v13l-12 7L4 23V10l12-7Zm0 14 12-7M16 17 4 10m12 7v13M10 6l12 7"/></svg><span><strong>3D-просмотр</strong><small>Интерактивная модель</small></span></p>
+          <p><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9 3h11l7 7v17a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm11 0v8h7M12 16h10m-10 5h10M4 8v18"/></svg><span><strong>Планы и фото</strong><small>Все материалы в одном месте</small></span></p>
+          <p><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="13" cy="10" r="5"/><path d="M3 28v-5a7 7 0 0 1 7-7h6a7 7 0 0 1 7 7v5M23 5a5 5 0 0 1 0 10m3 4a6 6 0 0 1 4 6v3"/></svg><span><strong>Для всей команды</strong><small>Дизайнеры, строители, заказчики</small></span></p>
         </div>
       </section>
-      <section class="product-demo">
-        <header>
-          <p class="section-label">Продукт в действии</p>
-          <h2>Весь проект — <em>в одном окне</em></h2>
-        </header>
-        <div class="demo-tabs" role="tablist">
-          ${["3D","План","Фото","Рендеры","Заметки"].map((x,i)=>`<button
-            role="tab"
-            aria-selected="${i===0}"
-            data-demo="${i}"
-          >
-            ${x}</button
-          >`).join("")}
+      <section class="landing-story" aria-labelledby="story-title">
+        <div class="story-atmosphere" aria-hidden="true"></div>
+        <div class="story-copy">
+          <p class="section-label">02 / Зачем Roomark</p>
+          <h2 id="story-title">Не ещё одна<br />папка с файлами.<em>Цельный образ проекта,<br class="story-wide-break" /> который растёт вместе с домом.</em></h2>
+          <p class="story-description">Соберите 3D-модель, планы, фото, заметки и задачи в одном месте — понятно для заказчика и команды.</p>
         </div>
-        <div class="demo-stage">
-          <div class="demo-content" data-demo-content="0">
-            <div class="demo-cube">3D</div>
-            <p>Вращайте модель и переходите между помещениями</p>
+        <div class="story-visual">
+          <img class="story-house" src="./images/editorial-house.webp" alt="Современный дом с деревянным фасадом и каменным камином в вечернем свете" width="1808" height="870" loading="lazy" />
+          <div class="story-benefits" aria-label="Преимущества Roomark">
+            <p><svg viewBox="0 0 32 32" aria-hidden="true"><path d="m18 3-11 15h9l-2 11 12-16h-9l1-10Z"/></svg><strong>Быстрее</strong><span>согласования</span></p>
+            <p><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="11" cy="10" r="4"/><circle cx="23" cy="9" r="3"/><path d="M3 28v-5a7 7 0 0 1 7-7h2a7 7 0 0 1 7 7v5m2-12a6 6 0 0 1 8 6v6"/></svg><strong>Удобнее</strong><span>коммуникация</span></p>
+            <p><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3c4 3 7 4 11 4v10c0 6-6 10-11 13C11 27 5 23 5 17V7c4 0 7-1 11-4Z"/><path d="m12 16 3 3 6-7"/></svg><strong>Прозрачный</strong><span>ход работ</span></p>
           </div>
-          <div class="demo-content" data-demo-content="1" hidden>
-            <div class="demo-plan"><i></i><i></i><i></i><i></i></div>
-            <p>Планы всегда связаны со структурой объекта</p>
-          </div>
-          <div class="demo-content" data-demo-content="2" hidden>
-            <img src="./img/1.jpg" alt="Фотография интерьера" loading="lazy" />
-            <p>Хронология строительства и готовых помещений</p>
-          </div>
-          <div class="demo-content" data-demo-content="3" hidden>
-            <img src="./images/editorial-house.webp" alt="Архитектурный рендер" loading="lazy" />
-            <p>Рендеры собраны по комнатам и ракурсам</p>
-          </div>
-          <div class="demo-content" data-demo-content="4" hidden>
-            <div class="demo-plan pins"><button>1</button><button>2</button><button>3</button></div>
-            <p>Замечания привязаны к точному месту</p>
-          </div>
+          <p class="section-handnote story-handnote" aria-hidden="true"><svg viewBox="0 0 100 62"><path d="M91 44C59 55 28 39 13 13m1 18-2-19 18 5"/></svg><span>Проекты<br />становятся<br />реальностью</span></p>
         </div>
       </section>
-      <section class="compare-section">
-        <div>
-          <p class="section-label">Рендер и реальность</p>
-          <h2>Замысел становится<br /><em>пространством</em></h2>
-          <p>Перетащите разделитель, чтобы сравнить проект и выполненную работу.</p>
+      <section id="possibilities" class="landing-project" aria-labelledby="project-section-title">
+        <div class="project-section-copy">
+          <p class="section-label">03 / Весь проект</p>
+          <h2 id="project-section-title">Один адрес<br />для всего проекта</h2>
+          <ol class="project-points">
+            <li><span class="project-point-number" aria-hidden="true">01</span><div><h3>Покажите пространство</h3><p>Интерактивная модель связывает комнаты, планы и ракурсы.</p></div></li>
+            <li><span class="project-point-number" aria-hidden="true">02</span><div><h3>Сохраните ход работы</h3><p>Фотографии и рендеры складываются в единую историю объекта.</p></div></li>
+            <li><span class="project-point-number" aria-hidden="true">03</span><div><h3>Обсуждайте по существу</h3><p>Замечания остаются на модели и плане вместе с контекстом.</p></div></li>
+          </ol>
         </div>
-        <div class="compare" data-cursor="↔">
-          <img src="./images/editorial-house.webp" alt="Выполненный архитектурный проект" />
-          <div class="compare-before"><img src="./img/1.jpg" alt="Дизайнерский рендер" /></div>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value="52"
-            aria-label="Сравнение рендера и выполненной работы"
-          /><span></span><b class="before-label">Рендер</b><b class="after-label">Реальность</b>
+        <div class="project-section-visual">
+          <figure class="project-comparison" data-image-comparison style="--comparison: 50%">
+            <img class="comparison-reality" src="./images/interior-before-finishing.png" alt="Кухня до отделки: бетонные стены и пустое помещение" width="1280" height="720" loading="lazy" />
+            <img class="comparison-render" src="./img/2.jpg" alt="Проект того же помещения: готовая кухня со столовой" width="1280" height="720" loading="lazy" />
+            <span class="comparison-label comparison-label-render" aria-hidden="true">Рендер</span>
+            <span class="comparison-label comparison-label-reality" aria-hidden="true">Реальность</span>
+            <span class="comparison-divider" aria-hidden="true"><span><svg viewBox="0 0 24 24"><path d="M4 12h16M8 8l-4 4 4 4m8-8 4 4-4 4"/></svg></span></span>
+            <input class="comparison-range" type="range" min="0" max="100" value="50" aria-label="Сравнить рендер и помещение до отделки" aria-valuetext="Рендер 50%, реальность 50%" />
+          </figure>
+          <p class="section-handnote project-handnote" aria-hidden="true"><svg viewBox="0 0 100 62"><path d="M91 44C57 48 29 38 13 9m1 19-2-20 18 6"/></svg><span>От идеи<br />к реальному<br />пространству</span></p>
         </div>
       </section>
-      <section class="plan-section">
-        <header>
-          <p class="section-label">Интерактивный план</p>
-          <h2>Каждая комната<br /><em>имеет контекст</em></h2>
-        </header>
-        <div class="plan-demo">
-          <div class="floor-plan">
-            ${[["kitchen","Кухня-гостиная","28,4 м²"],["bedroom","Спальня","16,2
-            м²"],["bathroom","Санузел","6,8 м²"],["hall","Прихожая","10,5
-            м²"]].map(([id,n,a])=>`<button data-room="${id}" data-name="${n}" data-area="${a}">
-              <span>${n}<small>${a}</small></span></button
-            >`).join("")}
+      <section class="room-context-section" aria-labelledby="room-context-title">
+        <img class="context-chair" src="./images/landing-chair-books.png" alt="" loading="lazy" aria-hidden="true" />
+        <div class="room-context-copy">
+          <p class="section-label">04 / Каждая комната</p>
+          <h2 id="room-context-title">Каждая комната<br /><em>имеет контекст</em></h2>
+          <div class="context-room-grid" role="group" aria-label="Выберите помещение">
+            <button class="context-room active" type="button" data-context-room="kitchen" aria-pressed="true"><span><strong>Кухня-гостиная</strong><small>28,4 м²</small></span><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M8 22V13a4 4 0 0 1 4-4h16a4 4 0 0 1 4 4v9M7 19a3 3 0 0 0-3 3v9h32v-9a3 3 0 0 0-6 0v4H10v-4a3 3 0 0 0-3-3Zm1 12v4m24-4v4"/></svg></button>
+            <button class="context-room" type="button" data-context-room="bedroom" aria-pressed="false"><span><strong>Спальня</strong><small>16,2 м²</small></span><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M8 17V8h24v9M6 29v6m28-6v6M5 24h30v7H5v-7Zm0 0 4-8h22l4 8M13 12h4m6 0h4"/></svg></button>
+            <button class="context-room" type="button" data-context-room="hall" aria-pressed="false"><span><strong>Прихожая</strong><small>10,5 м²</small></span><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M17 11a3 3 0 1 1 5 2c-2 1-2 3-2 5L5 28a2 2 0 0 0 1 4h28a2 2 0 0 0 1-4L20 18"/></svg></button>
+            <button class="context-room" type="button" data-context-room="bathroom" aria-pressed="false"><span><strong>Санузел</strong><small>6,8 м²</small></span><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M22 10V8a4 4 0 0 1 8 0v12M5 21h30l-4 11H9L5 21Zm7 11v3m16-3v3M19 11h6m-5 4v2m4-2v2"/></svg></button>
           </div>
-          <aside>
-            <img src="./img/2.jpg" alt="Выбранное помещение" loading="lazy" />
-            <p>Выбрано помещение</p>
-            <h3>Кухня-гостиная</h3>
-            <span>28,4 м²</span>
-          </aside>
+          <p class="context-handnote room-choice-note" aria-hidden="true"><span>Нажмите на комнату,<br />чтобы увидеть её в деталях</span><svg viewBox="0 0 80 80"><path d="M5 72C42 66 58 42 60 10m-9 12 10-13 8 14"/></svg></p>
         </div>
-      </section>
-      <section class="story-section">
-        <header>
-          <p class="section-label">Жизненный цикл проекта</p>
-          <h2>От модели — <em>до готового дома</em></h2>
-        </header>
-        <div class="story-track">
-          ${[["Модель","Единая пространственная основа"],["План","Понятная навигация по
-          комнатам"],["Рендер","Образ будущего интерьера"],["Стройка","Фиксация хода
-          работ"],["Готовая комната","Результат рядом с замыслом"]].map((x,i)=>`
-          <article>
-            <span>0${i+1}</span>
-            <h3>${x[0]}</h3>
-            <p>${x[1]}</p>
+        <div class="room-context-preview">
+          <div class="context-tabs" role="tablist" aria-label="Материалы комнаты">
+            <button id="context-tab-3d" class="active" type="button" role="tab" aria-selected="true" aria-controls="context-room-panel" data-context-view="3d">3D</button>
+            <button id="context-tab-plan" type="button" role="tab" aria-selected="false" aria-controls="context-room-panel" tabindex="-1" data-context-view="plan">План</button>
+            <button id="context-tab-photos" type="button" role="tab" aria-selected="false" aria-controls="context-room-panel" tabindex="-1" data-context-view="photos">Фото</button>
+            <button id="context-tab-renders" type="button" role="tab" aria-selected="false" aria-controls="context-room-panel" tabindex="-1" data-context-view="renders">Рендеры</button>
+            <button id="context-tab-notes" type="button" role="tab" aria-selected="false" aria-controls="context-room-panel" tabindex="-1" data-context-view="notes">Заметки</button>
+          </div>
+          <article id="context-room-panel" class="context-preview-card" role="tabpanel" aria-labelledby="context-tab-3d">
+            <div class="context-preview-stage" data-room="kitchen" data-view="3d">
+              <img id="context-preview-image" src="./img/2.jpg" alt="Визуализация кухни-гостиной" width="1280" height="720" loading="lazy" />
+              <div id="context-preview-empty" class="context-preview-empty" hidden><svg viewBox="0 0 40 40" aria-hidden="true"><rect x="5" y="8" width="30" height="24" rx="3"/><circle cx="14" cy="16" r="3"/><path d="m6 28 10-8 7 6 5-5 6 7"/></svg><strong>Фотографии ещё не добавлены</strong><p>Материалы этого помещения появятся здесь.</p></div>
+              <div id="context-preview-notes" class="context-preview-notes" hidden><span class="context-note-type">Пример замечания</span><div><b>1</b><p id="context-note-text">Уточнить расположение розеток над рабочей поверхностью.</p></div><small>Привязано к выбранному помещению</small></div>
+            </div>
+            <div class="context-preview-footer">
+              <div aria-live="polite" aria-atomic="true"><p>Выбранное помещение</p><h3 id="context-room-name">Кухня-гостиная</h3><span id="context-room-area">28,4 м²</span></div>
+              <a class="context-open-viewer" href="./viewer.html" aria-label="Открыть проект в просмотрщике"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></a>
+            </div>
           </article>
-          `).join("")}
+          <p class="context-handnote room-preview-note" aria-hidden="true"><svg viewBox="0 0 92 64"><path d="M85 51C49 53 24 38 13 11m0 17-1-18 17 8"/></svg><span>Реалистичные визуализации<br />на основе вашей модели</span></p>
         </div>
       </section>
-      <section id="process" class="process-story">
-        <div>
-          <p class="section-label">Как это работает</p>
-          <h2>Три шага<br />к живому проекту</h2>
+      <section id="process" class="project-process-section" aria-labelledby="project-process-title">
+        <div class="project-process-copy">
+          <p class="section-label">05 / Как это работает</p>
+          <h2 id="project-process-title">Три шага<br />к живому проекту</h2>
+          <ol class="project-process-steps">
+            <li><span class="process-step-number" aria-hidden="true">1</span><div><h3>Назовите объект</h3><p>Площадь, комнаты и характер оформления.</p></div></li>
+            <li><span class="process-step-number" aria-hidden="true">2</span><div><h3>Добавьте материалы</h3><p>Модель, фотографии, планы и документы.</p></div></li>
+            <li><span class="process-step-number" aria-hidden="true">3</span><div><h3>Поделитесь ссылкой</h3><p>Один адрес для заказчика и команды.</p></div></li>
+          </ol>
+          <p class="context-handnote process-handnote" aria-hidden="true"><svg viewBox="0 0 95 67"><path d="M88 50C53 51 28 35 14 12m1 17-2-18 17 6"/></svg><span>Просто. Понятно.<br />Эффективно.</span></p>
         </div>
-        <ol>
-          <li class="active">
-            <b>1</b
-            ><span
-              ><strong>Назовите объект</strong
-              ><small>Площадь, комнаты и характер оформления.</small></span
-            >
-          </li>
-          <li>
-            <b>2</b
-            ><span
-              ><strong>Добавьте материалы</strong
-              ><small>Модель, фотографии, планы и документы.</small></span
-            >
-          </li>
-          <li>
-            <b>3</b
-            ><span
-              ><strong>Поделитесь ссылкой</strong
-              ><small>Один адрес для заказчика и команды.</small></span
-            >
-          </li>
-        </ol>
-        <div class="process-mock">
-          <span>ЖК Северный</span><strong>Проект готов к публикации</strong
-          ><button>Открыть viewer →</button>
-        </div>
+        <article class="project-ready-card">
+          <img class="project-ready-model" src="./images/landing-building-model.png" alt="" aria-hidden="true" loading="lazy" />
+          <div class="project-ready-copy"><p class="project-ready-name">ЖК Северный</p><h3>Проект готов к публикации</h3><p class="project-ready-description">Поделитесь ссылкой, чтобы показать проект заказчику или команде.</p><a class="project-ready-link" href="./viewer.html">Открыть viewer <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></a></div>
+          <div class="project-ready-benefits" aria-label="Возможности проекта">
+            <p><svg viewBox="0 0 32 32" aria-hidden="true"><path d="m13 20 7-8m-9 5-2 2a5 5 0 0 0 7 7l5-5a5 5 0 0 0 0-7m0 1 2-2a5 5 0 0 0-7-7l-5 5a5 5 0 0 0 0 7"/></svg><span>Один адрес<br />для всех</span></p>
+            <p><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="11" cy="10" r="4"/><circle cx="23" cy="9" r="3"/><path d="M3 28v-5a7 7 0 0 1 7-7h2a7 7 0 0 1 7 7v5m2-12a6 6 0 0 1 8 6v6"/></svg><span>Удобная<br />коммуникация</span></p>
+            <p><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3c4 3 7 4 11 4v10c0 6-6 10-11 13C11 27 5 23 5 17V7c4 0 7-1 11-4Z"/><path d="m12 16 3 3 6-7"/></svg><span>Контроль<br />версий</span></p>
+          </div>
+        </article>
       </section>
       <section class="landing-closing">
         <p class="section-label">Ваш следующий объект</p>
@@ -271,8 +213,8 @@
       <a href="mailto:hello@roomark.ru">Связаться</a><small>© 2026 Roomark</small>
     </footer>
     <div class="context-cursor" aria-hidden="true"></div>
-    <script src="./scripts/profile-menu.js?v=2"></script>
-    <script src="./scripts/home-auth.js?v=2"></script>
-    <script type="module" src="./scripts/landing-motion.js?v=1"></script>
+    <script src="./scripts/profile-menu.js?v=3"></script>
+    <script src="./scripts/home-auth.js?v=3"></script>
+    <script type="module" src="./scripts/landing-motion.js?v=6"></script>
   </body>
 </html>

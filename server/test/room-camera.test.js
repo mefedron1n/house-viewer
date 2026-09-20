@@ -7,6 +7,41 @@ import * as THREE from '../../vendor/three/build/three.core.js';
 const source = readFileSync(new URL('../../scripts/app.js', import.meta.url), 'utf8');
 const focusSource = source.slice(source.indexOf('window.focusRoom ='), source.indexOf('window.highlightRoom ='));
 
+test('room overview replaces the distant model frame and cancels its pending animation', () => {
+  const camera = new THREE.PerspectiveCamera(45, 1.9, 0.01, 500);
+  camera.position.set(80, 60, 80);
+  const controls = { target: new THREE.Vector3(), update() {} };
+  const originalPosition = new THREE.Vector3(), originalTarget = new THREE.Vector3();
+  const room = {
+    id: 'room', name: 'Room', objectIds: [], floorY: 0.2,
+    boundingBox: { min: { x: 4.5, z: -2.4 }, max: { x: 21.3, z: 3.8 } },
+  };
+  const context = vm.createContext({
+    THREE, camera, controls, originalPosition, originalTarget,
+    roomsAnalysis: { rooms: [room] }, window: { dispatchEvent() {} },
+    cameraAnimation: { from: camera.position.clone(), to: new THREE.Vector3(70, 50, 70) },
+    defaultMinDistance: 1, defaultMaxDistance: 100,
+    initialModelUrl: 'model.glb', pageParams: new URLSearchParams(),
+    localStorage: { setItem() {} }, console: { table() {} },
+    CustomEvent: class {}, renderModelNotes() {}, positionModelNotes() {},
+  });
+  vm.runInContext(source.slice(source.indexOf('function publishRoomsAnalysis()'),
+    source.indexOf('window.getRoomsMetadata =')), context);
+  context.publishRoomsAnalysis();
+  assert.equal(context.cameraAnimation, null, 'the render loop must not restore the old distant frame');
+  assert.ok(camera.position.distanceTo(controls.target) < 35);
+  assert.ok(camera.position.x > controls.target.x && camera.position.z > controls.target.z);
+  assert.deepEqual(originalPosition, camera.position, 'Home restores the initial overview');
+  assert.deepEqual(originalTarget, controls.target);
+  camera.lookAt(controls.target);
+  camera.updateMatrixWorld();
+  for (const x of [room.boundingBox.min.x, room.boundingBox.max.x])
+    for (const z of [room.boundingBox.min.z, room.boundingBox.max.z]) {
+      const corner = new THREE.Vector3(x, room.floorY, z).project(camera);
+      assert.ok(Math.abs(corner.x) < 1 && Math.abs(corner.y) < 1);
+    }
+});
+
 for (const [name, width, depth, aspect] of [
   ['living room', 4, 3.1, 1.5],
   ['small bathroom', 1.4, 2, 1.5],

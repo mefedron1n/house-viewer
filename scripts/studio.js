@@ -8,7 +8,10 @@
       /[&<>"']/g,
       (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]
     );
-  const view = new URLSearchParams(location.search).get("view") || "profile";
+  const requestedView = new URLSearchParams(location.search).get("view") || "profile";
+  const view = ["profile", "projects", "new", "billing", "dashboard"].includes(requestedView)
+    ? requestedView
+    : "profile";
   $$("[data-studio-nav]").forEach((link) =>
     link.classList.toggle("active", link.dataset.studioNav === view)
   );
@@ -19,7 +22,7 @@
     )
   );
   const projectCard = (project) =>
-    `<article class="project-list-card" data-project-id="${project.id}"><img src="./images/editorial-house.webp" alt="" class="project-list-cover"><div class="project-list-copy"><h2>${esc(project.name)}</h2><p class="project-list-meta"><span>▣ ${project.area} м²</span><i>·</i><span>♙ ${project.rooms} комнат</span><i>·</i><span>▣ ${new Date(project.updatedAt).toLocaleDateString("ru")}</span></p><span class="project-list-status">${esc(project.status)}</span></div><button class="project-list-more" type="button" data-project-menu="${project.id}" aria-label="Действия с проектом" aria-expanded="false">⋮</button><div class="project-card-menu" data-project-menu-panel="${project.id}" hidden><button type="button" data-project-edit="${project.id}">Изменить проект</button><button type="button" class="danger" data-project-delete="${project.id}">Удалить проект</button></div><a class="project-list-open" href="./project.html?id=${encodeURIComponent(project.id)}">Открыть <span>→</span></a></article>`;
+    `<article class="project-list-card" data-project-id="${project.id}"><img src="./images/editorial-house.webp" alt="" class="project-list-cover"><div class="project-list-copy"><h2>${esc(project.name)}</h2><p class="project-list-meta"><span>▣ ${project.area} м²</span><i>·</i><span>♙ ${project.rooms} комнат</span><i>·</i><span>▣ ${new Date(project.updatedAt).toLocaleDateString("ru")}</span></p><span class="project-list-status">${esc(project.status)}</span></div><button class="project-list-more" type="button" data-project-menu="${project.id}" aria-label="Действия с проектом" aria-expanded="false">⋮</button><div class="project-card-menu" data-project-menu-panel="${project.id}" hidden><a href="./project.html?id=${encodeURIComponent(project.id)}">Изменить проект</a><button type="button" class="danger" data-project-delete="${project.id}">Удалить проект</button></div><a class="project-list-open" href="./viewer.html?project=${encodeURIComponent(project.id)}">Открыть <span>→</span></a></article>`;
   function profile() {
     const parts = user.name.trim().split(/\s+/),
       firstName = parts[0] || "",
@@ -209,22 +212,7 @@
         menuButton.setAttribute("aria-expanded", String(opening));
         return;
       }
-      const editButton = event.target.closest("[data-project-edit]"),
-        deleteButton = event.target.closest("[data-project-delete]");
-      if (editButton) {
-        const project = projects.find((item) => item.id === editButton.dataset.projectEdit),
-          dialog = $("#project-edit-dialog"),
-          form = $("#project-edit-form"),
-          fields = form.elements;
-        form.dataset.projectId = project.id;
-        fields.name.value = project.name;
-        fields.area.value = project.area;
-        fields.rooms.value = project.rooms;
-        fields.theme.value = project.theme;
-        form.querySelector(".project-edit-status").textContent = "";
-        closeMenus();
-        dialog.showModal();
-      }
+      const deleteButton = event.target.closest("[data-project-delete]");
       if (deleteButton) {
         const project = projects.find((item) => item.id === deleteButton.dataset.projectDelete);
         closeMenus();
@@ -249,38 +237,6 @@
       },
       { once: false }
     );
-    $("#project-edit-form").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      if (event.submitter?.value === "cancel") {
-        $("#project-edit-dialog").close();
-        return;
-      }
-      const form = event.currentTarget,
-        fields = form.elements,
-        status = form.querySelector(".project-edit-status"),
-        submit = form.querySelector('[type="submit"]'),
-        project = projects.find((item) => item.id === form.dataset.projectId);
-      submit.disabled = true;
-      status.textContent = "Сохраняем…";
-      try {
-        const updated = await request(`/api/projects/${project.id}`, {
-          method: "PATCH",
-          body: JSON.stringify({
-            name: fields.name.value,
-            area: Number(fields.area.value),
-            rooms: Number(fields.rooms.value),
-            theme: fields.theme.value,
-          }),
-        });
-        Object.assign(project, updated);
-        $("#project-edit-dialog").close();
-        drawProjects();
-      } catch (error) {
-        status.textContent = error.message;
-      } finally {
-        submit.disabled = false;
-      }
-    });
   }
   function wizard() {
     let step = 1,

@@ -1,4 +1,4 @@
-window.HOUSE_ROOMS = [
+window.HOUSE_ROOMS = new URLSearchParams(location.search).has("project") ? [] : [
   {
     id: "kitchen",
     slug: "kitchen",

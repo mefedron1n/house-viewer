@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" fill="none">
+  <rect x="70" y="35" width="820" height="570" rx="16" fill="#faf7ef"/>
+  <g stroke="#ddd4c5" stroke-width="1">
+    <path d="M102 76h756M102 112h756M102 148h756M102 184h756M102 220h756M102 256h756M102 292h756M102 328h756M102 364h756M102 400h756M102 436h756M102 472h756M102 508h756M102 544h756" opacity=".45"/>
+    <path d="M130 68v494m46-494v494m46-494v494m46-494v494m46-494v494m46-494v494m46-494v494m46-494v494m46-494v494m46-494v494m46-494v494m46-494v494m46-494v494m46-494v494m46-494v494m46-494v494" opacity=".35"/>
+  </g>
+  <path d="M112 82h738v469H112V82Z" fill="#f1eadc" stroke="#696352" stroke-width="9"/>
+  <path d="M572 85h274v163H572V85Z" fill="#ebe6dc"/>
+  <path d="M572 256h274v207H572V256Z" fill="#e8ddc9"/>
+  <path d="M117 477h728v69H117v-69Z" fill="#e3d8bf"/>
+  <g stroke="#696352" stroke-width="7"><path d="M568 85v100m0 62v216M570 251h72m62 0h141M115 472h360m71 0h301"/></g>
+  <g stroke="#9b8f7b" stroke-width="1.5"><path d="M568 185h62a62 62 0 0 1-62 62m74 4v62a62 62 0 0 0 62-62M475 472v-71a71 71 0 0 1 71 71"/></g>
+  <g stroke="#afa18b" stroke-width="2" fill="#fbf8ef">
+    <path d="M138 106h388v57H138zM155 348h202v80H155z"/><rect x="172" y="334" width="72" height="67" rx="10"/><rect x="250" y="334" width="72" height="67" rx="10"/>
+    <rect x="192" y="272" width="98" height="43" rx="18" fill="#cec1a7"/>
+    <rect x="391" y="213" width="98" height="120" rx="32" fill="#d9c9ab"/>
+    <path d="M378 238h-15v30h15m124-30h15v30h-15m-124 23h-15v30h15m124-30h15v30h-15"/>
+    <rect x="291" y="120" width="59" height="29" rx="5"/>
+    <rect x="397" y="117" width="62" height="34" rx="3"/>
+    <circle cx="413" cy="128" r="6"/><circle cx="443" cy="138" r="6"/>
+    <rect x="678" y="316" width="125" height="130" rx="6"/><path d="M678 351h125v95H678z" fill="#b4b195"/>
+    <rect x="690" y="324" width="44" height="28" rx="6"/><rect x="746" y="324" width="44" height="28" rx="6"/>
+    <path d="M653 317h18v28h-18zm157 0h18v28h-18z" fill="#d2c0a2"/>
+    <rect x="770" y="106" width="53" height="78" rx="5"/><path d="m775 110 42 68m0-68-42 68"/>
+    <rect x="596" y="106" width="67" height="38" rx="5"/><ellipse cx="630" cy="125" rx="20" ry="12"/>
+    <rect x="700" y="108" width="34" height="44" rx="15"/>
+    <rect x="178" y="498" width="49" height="31" rx="10"/><rect x="320" y="498" width="49" height="31" rx="10"/>
+    <circle cx="274" cy="514" r="19" fill="#c9b89b"/>
+  </g>
+  <g stroke="#8d9772" stroke-width="3" fill="#b7bea0"><circle cx="144" cy="443" r="15"/><circle cx="814" cy="515" r="17"/><circle cx="614" cy="434" r="12"/></g>
+  <g fill="#615b4f" text-anchor="middle" font-family="Arial, sans-serif">
+    <text x="300" y="201" font-size="18">Кухня-гостиная</text><text x="300" y="224" font-size="13">28,4 м²</text>
+    <text x="707" y="287" font-size="17">Спальня · 12,6 м²</text>
+    <text x="708" y="214" font-size="16">Санузел · 5,3 м²</text>
+    <text x="541" y="520" font-size="15" letter-spacing="3">ТЕРРАСА</text>
+  </g>
+  <g stroke="#e8a23a" stroke-width="1.5"><path d="M112 64v-9m738 9v-9M112 59h738M93 82h-9m9 469h-9M88 82v469"/></g>
+  <text x="480" y="54" fill="#a18b67" font-size="11" font-family="Arial, sans-serif" text-anchor="middle" letter-spacing="2">ПЛАН КВАРТИРЫ</text>
+</svg>

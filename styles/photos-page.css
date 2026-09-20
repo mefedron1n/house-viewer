@@ -179,3 +179,6 @@ html:not(.dark) .room-media-dialog::backdrop{background:rgba(39,35,28,.42);backd
 
 /* Square renders deserve a square full-screen frame; other source ratios still fit without cropping. */
 #lightbox{width:min(calc(100dvh - 80px),calc(100vw - 32px));max-height:none}.lightbox-stage{width:100%;height:auto;aspect-ratio:1/1}@media(max-width:650px){#lightbox{width:calc(100vw - 20px)}.lightbox-stage{height:auto;aspect-ratio:1/1}}
+
+/* The full-screen frame follows each image's source ratio, so it has no letterbox bars. */
+#lightbox .lightbox-stage{overflow:hidden;max-width:calc(100vw - 32px);max-height:calc(100dvh - 86px);background:transparent}#lightbox .lightbox-image{cursor:zoom-in;transition:transform .2s ease}#lightbox.zoomed .lightbox-image{cursor:zoom-out;transform:scale(1.75)}

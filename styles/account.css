@@ -1201,7 +1201,10 @@ html.account-dark .projects-toolbar select {
 .project-card-menu[hidden] {
   display: none;
 }
-.project-card-menu button {
+.project-card-menu button,
+.project-card-menu a {
+  display: block;
+  width: 100%;
   padding: 11px 12px;
   color: var(--account-text);
   background: transparent;
@@ -1210,8 +1213,10 @@ html.account-dark .projects-toolbar select {
   cursor: pointer;
   text-align: left;
   font-size: 13px;
+  text-decoration: none;
 }
-.project-card-menu button:hover {
+.project-card-menu button:hover,
+.project-card-menu a:hover {
   background: var(--projects-soft);
 }
 .project-card-menu button.danger {
@@ -1714,6 +1719,129 @@ html.account-dark .payment-security {
     line-height: 1.5;
   }
 }
+
+/* Account profile follows the same quiet editorial frame as the supplied reference. */
+.account-marketing-nav {
+  display: flex;
+  gap: 42px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.account-marketing-nav a {
+  color: #252622;
+  font-size: 13px;
+  text-decoration: none;
+}
+.account-marketing-nav a:hover { color: var(--account-accent); }
+.account-top-actions {
+  gap: 10px;
+}
+.account-top-actions .account-projects-link {
+  min-height: 42px;
+  margin-left: 0;
+  padding: 0 15px;
+  color: #302f2b;
+  background: #fff;
+  border: 1px solid #deddd8;
+  border-radius: 999px;
+  font-size: 12px;
+  text-decoration: none;
+}
+.account-top-actions .profile-trigger {
+  min-height: 42px;
+  padding: 0 10px 0 14px;
+  color: #252622;
+  background: #fff;
+  border: 1px solid #deddd8;
+  border-radius: 999px;
+}
+.account-top-actions .profile-trigger strong {
+  width: 29px;
+  height: 29px;
+  color: #3e2a08;
+  background: #f4a21e;
+}
+.account-main:has(.account-content) {
+  min-height: calc(100vh - 76px);
+  padding-top: 42px;
+  background:
+    linear-gradient(90deg, rgba(251, 250, 247, 0.98) 0%, rgba(251, 250, 247, 0.9) 47%, rgba(251, 250, 247, 0.3) 100%),
+    url("../images/editorial-house.webp") right top / min(55vw, 860px) auto no-repeat;
+}
+.account-content .account-heading {
+  min-height: 144px;
+  padding-top: 12px;
+}
+.account-content .account-heading::before {
+  display: block;
+  margin-bottom: 18px;
+  color: #777a76;
+  content: "Кабинет  /  Профиль";
+  font-size: 12px;
+}
+.account-content .account-heading h1 {
+  font-size: clamp(48px, 5vw, 65px);
+  line-height: 0.95;
+}
+.account-content .account-heading p {
+  margin-top: 17px;
+  font-size: 16px;
+}
+.account-content .account-card {
+  padding: 25px 28px;
+  background: rgba(255, 255, 255, 0.78);
+  border-radius: 16px;
+  box-shadow: 0 12px 33px rgba(45, 39, 25, 0.04);
+  backdrop-filter: blur(10px);
+}
+.account-content .account-card-head {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  column-gap: 13px;
+  align-items: center;
+}
+.account-content .account-card-head::before {
+  display: grid;
+  grid-row: span 2;
+  width: 48px;
+  height: 48px;
+  color: #d67b26;
+  background: #fff0d6;
+  border-radius: 50%;
+  content: "◉";
+  font-size: 21px;
+  place-items: center;
+}
+.account-content .account-card-head h2 { margin: 0 0 4px; font-size: 16px; }
+.account-content .account-card-head p { font-size: 12px; }
+.account-content .profile-form-grid { grid-template-columns: 190px 1fr 1fr; }
+.account-content .account-avatar {
+  width: 104px;
+  height: 104px;
+  color: #282724;
+  background: #eeebe4;
+  border-color: #e4dfd6;
+}
+.account-content .avatar-button { color: #a96800; border-color: #eda62e; }
+.account-content .account-primary { min-height: 48px; padding-inline: 25px; border-radius: 999px; }
+.account-content .password-form { grid-template-columns: 200px 1fr; }
+html.account-dark .account-marketing-nav a { color: #ece9e0; }
+html.account-dark .account-top-actions .account-projects-link,
+html.account-dark .account-top-actions .profile-trigger { color: #ece9e0; background: #141814; border-color: #343a34; }
+html.account-dark .account-main:has(.account-content) {
+  background:
+    linear-gradient(90deg, rgba(13, 17, 14, 0.98) 0%, rgba(13, 17, 14, 0.91) 47%, rgba(13, 17, 14, 0.36) 100%),
+    url("../images/editorial-house.webp") right top / min(55vw, 860px) auto no-repeat;
+}
+html.account-dark .account-content .account-card { background: rgba(20, 25, 21, 0.84); border-color: #343a34; box-shadow: none; }
+html.account-dark .account-content .account-heading::before { color: #a8aaa5; }
+@media (max-width: 860px) {
+  .account-marketing-nav { display: none; }
+  .account-top-actions { margin-left: auto; }
+  .account-top-actions .account-projects-link { display: none; }
+  .account-main:has(.account-content) { background: #fbfaf7; }
+  .account-content .account-heading { min-height: 0; }
+}
 .account-layout {
   padding-top: var(--app-header-height);
 }
@@ -1724,4 +1852,95 @@ html.account-dark .payment-security {
   .account-layout {
     padding-top: var(--app-header-height-mobile);
   }
+}
+
+/* Cabinet header mirrors the landing page and contains account-only navigation. */
+.account-topbar {
+  display: grid;
+  height: var(--app-header-height);
+  grid-template-columns: minmax(220px, 1fr) auto minmax(220px, 1fr);
+  padding-inline: var(--app-header-padding-x);
+  background: rgba(255, 253, 248, 0.9);
+}
+.account-brand { justify-self: start; color: #272823; font-size: 19px; }
+.account-marketing-nav { justify-self: center; margin: 0; }
+.account-top-actions { position: relative; justify-self: end; margin: 0; }
+.account-top-actions > button {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  color: #34352f;
+  background: rgba(255, 255, 255, 0.46);
+  border: 1px solid #deddd8;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 17px;
+  place-items: center;
+}
+.account-top-actions .profile-menu-host { position: relative; }
+.account-top-actions .profile-trigger {
+  display: inline-flex;
+  width: auto;
+  height: 40px;
+  min-height: 40px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px 0 15px;
+  color: #292a25;
+  background: rgba(235, 231, 222, 0.8);
+  border: 1px solid rgba(71, 68, 59, 0.08);
+  border-radius: 999px;
+  cursor: pointer;
+  font: 600 13px var(--font-ui, Arial, sans-serif);
+}
+.account-top-actions .profile-trigger strong {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  color: #3f2a08;
+  background: #f2a31b;
+  border-radius: 50%;
+  font-size: 10px;
+  place-items: center;
+}
+.account-top-actions .profile-menu {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 10px);
+  right: 0;
+  display: grid;
+  width: 238px;
+  padding: 8px;
+  color: #2c2c26;
+  background: #fffdf8;
+  border: 1px solid #e0d8cc;
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(55, 47, 34, 0.16);
+}
+.account-top-actions .profile-menu[hidden] { display: none !important; }
+.account-top-actions .profile-menu-user { display: grid; gap: 3px; padding: 10px 11px; border-bottom: 1px solid #e6ded2; }
+.account-top-actions .profile-menu-user strong { font-size: 13px; }
+.account-top-actions .profile-menu-user span { overflow: hidden; color: #74756e; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.account-top-actions .profile-menu > a,
+.account-top-actions .profile-menu > button { display: flex; width: 100%; align-items: center; gap: 10px; padding: 10px 11px; color: #3b3b34; background: transparent; border: 0; border-radius: 8px; cursor: pointer; font: 13px var(--font-ui, Arial, sans-serif); text-align: left; text-decoration: none; }
+.account-top-actions .profile-menu > a:hover,
+.account-top-actions .profile-menu > button:hover { background: #f4efe5; }
+.account-top-actions .profile-menu > button { margin-top: 4px; color: #a34d3f; border-top: 1px solid #e6ded2; }
+.account-sidebar { padding-top: 30px; }
+.account-nav p { margin: 0 14px 12px; padding: 0; color: #74766f; border: 0; }
+html.account-dark .account-topbar { background: rgba(13, 18, 14, 0.9); border-color: #303630; }
+html.account-dark .account-brand, html.account-dark .account-marketing-nav a { color: #f1eee5; }
+html.account-dark .account-top-actions > button { color: #f1eee5; background: rgba(255,255,255,.04); border-color: #3b443a; }
+html.account-dark .account-top-actions .profile-trigger { color: #f1eee5; background: rgba(255,255,255,.06); border-color: #3b443a; }
+html.account-dark .account-top-actions .profile-menu { color: #f1eee5; background: #1a2019; border-color: #3a4438; }
+html.account-dark .account-top-actions .profile-menu-user { border-color: #3a4438; }
+html.account-dark .account-top-actions .profile-menu-user span { color: #afb2a8; }
+html.account-dark .account-top-actions .profile-menu > a, html.account-dark .account-top-actions .profile-menu > button { color: #f1eee5; }
+html.account-dark .account-top-actions .profile-menu > a:hover, html.account-dark .account-top-actions .profile-menu > button:hover { background: #262e25; }
+html.account-dark .account-top-actions .profile-menu > button { color: #e69c8e; border-color: #3a4438; }
+@media (max-width: 860px) {
+  .account-topbar { display: flex; height: var(--app-header-height-mobile); }
+  .account-marketing-nav { display: none; }
+  .account-top-actions { margin-left: auto; }
+  .account-top-actions .profile-trigger > span { display: none; }
 }

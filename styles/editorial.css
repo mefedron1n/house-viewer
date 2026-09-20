@@ -1409,6 +1409,214 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+/* Project settings: the dedicated destination of “⋮ → Изменить проект”. */
+.project-page-body {
+  min-height: 100vh;
+  background:
+    linear-gradient(90deg, rgba(247, 244, 237, 0.97) 0%, rgba(247, 244, 237, 0.88) 57%, rgba(247, 244, 237, 0.34) 100%),
+    url("../images/editorial-house.webp") right top / min(52vw, 840px) auto no-repeat,
+    #f7f4ed;
+}
+.project-page-body .studio-header {
+  background: rgba(255, 253, 248, 0.84);
+  border-bottom: 1px solid rgba(58, 51, 41, 0.12);
+  backdrop-filter: blur(16px);
+}
+.project-reference-editor {
+  width: min(1340px, calc(100% - 64px)) !important;
+  padding: 44px 0 68px !important;
+}
+.project-reference-editor .studio-eyebrow {
+  margin-bottom: 34px;
+  padding: 0;
+  border: 0;
+}
+.project-reference-editor .studio-eyebrow p {
+  color: #77736c;
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.project-reference-editor .studio-eyebrow i {
+  padding: 0 9px;
+  color: #b4ada2;
+  font-style: normal;
+}
+.project-reference-editor .studio-eyebrow a {
+  min-height: 44px;
+  padding: 0 18px;
+  color: #332f29;
+  border: 1px solid #d7d1c7;
+  border-radius: 999px;
+  font-size: 13px;
+}
+.project-reference-editor .project-editor-head {
+  min-height: 218px;
+  align-items: flex-start;
+  margin-bottom: 26px;
+}
+.project-reference-editor .project-editor-head > div {
+  max-width: 690px;
+}
+.project-reference-editor .project-editor-head .kicker,
+.project-reference-card > .kicker {
+  margin: 0 0 12px;
+  color: #bd6b37;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+.project-editor-name {
+  margin: 0 0 10px;
+  color: #77736c !important;
+  font-size: 13px;
+}
+.project-reference-editor .project-editor-head h1 {
+  color: #27251f;
+  font-size: clamp(46px, 5.3vw, 72px);
+  line-height: 0.98;
+}
+.project-reference-editor .project-editor-head h1 em {
+  color: #d27931;
+  font-weight: 400;
+}
+.project-reference-editor .project-editor-head > div > p:last-child {
+  max-width: 650px;
+  margin: 19px 0 0;
+  color: #706d67;
+  font-size: 17px;
+  line-height: 1.5;
+}
+.project-reference-editor .project-editor-head .button-secondary {
+  margin-top: 132px;
+  color: #403a32;
+  border-color: #d6d0c6;
+  border-radius: 999px;
+}
+.project-reference-editor .project-editor-grid {
+  gap: 18px;
+}
+.project-reference-card {
+  gap: 20px;
+  min-height: 462px;
+  padding: 28px !important;
+  background: rgba(255, 254, 250, 0.74) !important;
+  border: 1px solid rgba(88, 78, 64, 0.14);
+  border-radius: 16px !important;
+  box-shadow: 0 12px 32px rgba(56, 49, 37, 0.05);
+}
+.project-reference-card > .kicker {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-bottom: 0;
+  color: #25251f;
+  font-size: 16px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.project-reference-card > .kicker::before {
+  display: grid;
+  width: 45px;
+  height: 45px;
+  color: #d67b26;
+  background: #fff0d6;
+  border-radius: 50%;
+  content: "✦";
+  font-size: 19px;
+  place-items: center;
+}
+.project-reference-card > .project-card-note {
+  margin: -13px 0 12px 58px;
+  color: #858079;
+  font-size: 12px;
+}
+.project-reference-card label {
+  color: #6d6962;
+  font-size: 13px;
+}
+.project-reference-card input,
+.project-reference-card select {
+  color: #292722 !important;
+  background: rgba(255, 255, 255, 0.86) !important;
+  border-color: #ded9d0 !important;
+  border-radius: 10px !important;
+}
+.project-reference-card .button {
+  min-height: 56px;
+  justify-content: space-between;
+  margin-top: 3px;
+  padding-inline: 24px;
+  border-radius: 999px;
+}
+.project-reference-card .model-state {
+  display: none;
+}
+.project-reference-card .file-drop {
+  min-height: 245px !important;
+  color: #302c26;
+  background: rgba(252, 250, 245, 0.54);
+  border: 1px dashed #d4cec3;
+  border-radius: 13px;
+}
+.project-reference-card .file-drop::before {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 18px;
+  color: #39352e;
+  background: #efebe3;
+  border-radius: 50%;
+  content: "↥";
+  font-size: 33px;
+  place-items: center;
+}
+.project-reference-card .file-drop strong {
+  font-family: var(--serif);
+  font-size: 23px;
+  font-weight: 400;
+}
+.project-reference-card .file-drop p {
+  color: #827d74;
+}
+.project-reference-card .project-upload-actions {
+  justify-content: center;
+}
+.project-reference-card .project-upload-actions .button-secondary {
+  min-height: 51px;
+  padding: 0 27px;
+  color: #2c2924;
+  border-color: #e59b2b;
+  border-radius: 999px;
+  font-weight: 650;
+}
+html.dark .project-page-body {
+  background:
+    linear-gradient(90deg, rgba(17, 21, 17, 0.98) 0%, rgba(17, 21, 17, 0.88) 57%, rgba(17, 21, 17, 0.42) 100%),
+    url("../images/editorial-house.webp") right top / min(52vw, 840px) auto no-repeat,
+    #111511;
+}
+html.dark .project-page-body .studio-header { background: rgba(13, 17, 14, 0.84); }
+html.dark .project-reference-editor .project-editor-head h1,
+html.dark .project-reference-card > .kicker,
+html.dark .project-reference-card input,
+html.dark .project-reference-card select { color: #f3eee4 !important; }
+html.dark .project-reference-editor .studio-eyebrow a { color: #eee9de; border-color: rgba(238, 233, 222, 0.27); }
+html.dark .project-reference-card { background: rgba(20, 25, 21, 0.84) !important; border-color: rgba(238, 233, 222, 0.17); }
+html.dark .project-reference-card input,
+html.dark .project-reference-card select { background: rgba(15, 19, 16, 0.7) !important; border-color: rgba(238, 233, 222, 0.21) !important; }
+html.dark .project-reference-card .file-drop { color: #eee9de; background: rgba(10, 14, 11, 0.4); border-color: rgba(238, 233, 222, 0.3); }
+html.dark .project-reference-card .file-drop::before { color: #eee9de; background: #2a302a; }
+html.dark .project-reference-card .project-upload-actions .button-secondary { color: #f1eadf; }
+@media (max-width: 760px) {
+  .project-reference-editor { width: min(100% - 28px, 1340px) !important; padding-top: 26px !important; }
+  .project-reference-editor .project-editor-head { min-height: 0; }
+  .project-reference-editor .project-editor-head > div > p:last-child { font-size: 15px; }
+  .project-reference-editor .project-editor-head .button-secondary { margin-top: 0; }
+  .project-reference-card { min-height: 0; padding: 21px !important; }
+}
 :root {
   --color-page: var(--brand-paper);
   --color-page-warm: var(--brand-paper-deep);

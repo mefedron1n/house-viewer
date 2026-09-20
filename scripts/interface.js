@@ -8,6 +8,7 @@
   const rememberActionPassword = (value) => window.RoomarkSessionPassword?.set(value);
   const roomNames = Object.fromEntries(window.HOUSE_ROOMS.map(({ id, name }) => [id, name]));
   const roomCatalog = Object.fromEntries(window.HOUSE_ROOMS.map((room) => [room.id, room]));
+  let planRoomNames = { ...roomNames };
   const placeholder = "./images/room-placeholder.svg";
   let roomData = {},
     notes = [],
@@ -30,6 +31,8 @@
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
     })[character]);
   function roomIconUrl(key) {
+    const savedIcon = roomCatalog[key]?.icon;
+    if (savedIcon && /^[a-z-]+$/.test(savedIcon)) return `./images/room-icons/${savedIcon}.png`;
     const value = `${key} ${roomNames[key] || ""}`.toLowerCase();
     let icon = "living-room";
     if (/кухня[- ]гостиная|kitchen[- ]living/.test(value)) icon = "kitchen-living";
@@ -317,20 +320,24 @@
       }, delay)
     );
   }
+  let roomsRequest = 0;
   async function loadRooms() {
+    const requestId = ++roomsRequest;
     const entries = await Promise.all(
       Object.keys(roomNames).map(async (key) => {
         try {
-          const response = await fetchApi(`${API_URL}/api/rooms/${key}`, { cache: "no-store" });
+          const response = await fetchApi(`${API_URL}/api/rooms/${key}${projectQuery}`, { cache: "no-store" });
           return [key, response.ok ? await response.json() : {}];
         } catch {
           return [key, {}];
         }
       })
     );
+    if (requestId !== roomsRequest) return;
     roomData = Object.fromEntries(entries);
     renderPlan();
     renderGalleries();
+    if (roomMediaKey) renderRoomMedia();
   }
   const roomMediaDialog = document.getElementById("room-media-dialog"),
     roomMediaFiles = document.getElementById("room-media-files");
@@ -437,7 +444,7 @@
           data.append("date", new Date().toISOString().slice(0, 10));
           data.append("comment", file.name.replace(/\.[^.]+$/, ""));
         }
-        const response = await fetchApi(`${API_URL}/api/rooms/${encodeURIComponent(roomMediaKey)}/assets/${roomMediaKind === "photos" ? "photo" : "render"}`, {
+        const response = await fetchApi(`${API_URL}/api/rooms/${encodeURIComponent(roomMediaKey)}/assets/${roomMediaKind === "photos" ? "photo" : "render"}${projectQuery}`, {
           method: "POST",
           headers: { "X-Upload-Password": passwordHeader(password) },
           body: data,
@@ -462,7 +469,7 @@
     if (!password) return;
     const status = document.getElementById("room-media-status");
     try {
-      const response = await fetchApi(`${API_URL}/api/rooms/${encodeURIComponent(roomMediaKey)}/assets/${encodeURIComponent(item.filename)}`, {
+      const response = await fetchApi(`${API_URL}/api/rooms/${encodeURIComponent(roomMediaKey)}/assets/${encodeURIComponent(item.filename)}${projectQuery}`, {
         method: "DELETE",
         headers: { "X-Upload-Password": passwordHeader(password) },
       });
@@ -585,14 +592,29 @@
     lightboxImage = lightbox.querySelector(".lightbox-image");
   let lightboxItems = [],
     lightboxIndex = 0,
-    touchStartX = 0;
+    touchStartX = 0,
+    lightboxZoomed = false;
+  function sizeLightboxToImage() {
+    const stage = lightbox.querySelector(".lightbox-stage");
+    if (!lightboxImage.naturalWidth || !lightboxImage.naturalHeight || !stage) return;
+    const ratio = lightboxImage.naturalWidth / lightboxImage.naturalHeight;
+    const width = Math.min(window.innerWidth - 32, (window.innerHeight - 86) * ratio);
+    const height = width / ratio;
+    lightbox.style.width = `${Math.floor(width)}px`;
+    stage.style.width = `${Math.floor(width)}px`;
+    stage.style.height = `${Math.floor(height)}px`;
+    stage.style.aspectRatio = "auto";
+    fitContainedImage(lightboxImage, stage);
+  }
   function showLightboxItem(index) {
     if (!lightboxItems.length) return;
     lightboxIndex = (index + lightboxItems.length) % lightboxItems.length;
     const item = lightboxItems[lightboxIndex];
+    lightboxZoomed = false;
+    lightbox.classList.remove("zoomed");
     lightboxImage.src = item.dataset.image;
     lightboxImage.alt = item.dataset.caption;
-    const fit = () => fitContainedImage(lightboxImage, lightbox.querySelector(".lightbox-stage"));
+    const fit = () => sizeLightboxToImage();
     lightboxImage.addEventListener("load", fit, { once: true });
     if (lightboxImage.complete) requestAnimationFrame(fit);
     document.getElementById("lightbox-caption").textContent = item.dataset.caption;
@@ -634,6 +656,10 @@
     },
     { passive: true }
   );
+  lightboxImage.addEventListener("dblclick", () => {
+    lightboxZoomed = !lightboxZoomed;
+    lightbox.classList.toggle("zoomed", lightboxZoomed);
+  });
   lightboxImage.addEventListener(
     "touchend",
     (event) => {
@@ -648,7 +674,7 @@
     if (event.key === "ArrowRight") showLightboxItem(lightboxIndex + 1);
   });
   window.addEventListener("resize", () => {
-    if (lightbox.open) fitContainedImage(lightboxImage, lightbox.querySelector(".lightbox-stage"));
+    if (lightbox.open) sizeLightboxToImage();
   });
 
   function currentCalibration() {
@@ -754,12 +780,12 @@
       imageHeight = imageWidth / projectFloorplanAspect;
     return { left: (width - imageWidth) / 2, top: (height - imageHeight) / 2, width: imageWidth, height: imageHeight };
   }
-  function visiblePlanNotes() {
+  function visiblePlanNotes(statusFilter = planNoteFilter) {
     return notes.filter((note) => {
       const resolved = note.status === "resolved";
       return note.source !== "room-media" && note.coordinateSpace !== "legacy-normalized-v1" &&
-        !(planNoteFilter === "open" && resolved) && !(planNoteFilter === "resolved" && !resolved) &&
-        (planRoomFilter === "all" || note.roomId === planRoomFilter);
+        !(statusFilter === "open" && resolved) && !(statusFilter === "resolved" && !resolved) &&
+        (planRoomFilter === "all" || (window.RoomarkSpatial.noteRoomId(note) || "unassigned") === planRoomFilter);
     });
   }
   function renderPlanWorkspace() {
@@ -799,17 +825,21 @@
     const list = document.getElementById("notes-list");
     if (!list) return;
     const shown = visiblePlanNotes();
+    if (!shown.some((note) => note.id === activeNoteId)) activeNoteId = null;
     list.innerHTML = shown.length
       ? shown.map((note) => {
           const resolved = note.status === "resolved";
-          return `<article class="plan-note-card ${resolved ? "resolved" : ""} ${activeNoteId === note.id ? "active" : ""}" data-open-note="${note.id}"><div class="plan-note-card-top"><span class="plan-note-number">${shown.indexOf(note) + 1}</span><strong>Изменения</strong>${note.roomId && roomNames[note.roomId] ? `<small class="plan-note-room">${escapeHtml(roomNames[note.roomId])}</small>` : ""}<span class="note-state">${resolved ? "Исправлено" : "Открыто"}</span><button class="plan-note-delete" type="button" data-delete-plan-note="${note.id}" aria-label="Удалить замечание" title="Удалить замечание">×</button></div><p>${escapeHtml(note.text)}</p><footer><small>${noteDate(note.createdAt)}</small><label class="note-resolved-toggle"><input type="checkbox" data-note-status="${note.id}" ${resolved ? "checked" : ""}> <span>Готово</span></label></footer></article>`;
+          const roomId = window.RoomarkSpatial.noteRoomId(note);
+          return `<article class="plan-note-card ${resolved ? "resolved" : ""} ${activeNoteId === note.id ? "active" : ""}" data-open-note="${note.id}"><div class="plan-note-card-top"><span class="plan-note-number">${shown.indexOf(note) + 1}</span><strong>Изменения</strong>${roomId && planRoomNames[roomId] ? `<small class="plan-note-room">${escapeHtml(planRoomNames[roomId])}</small>` : ""}<span class="note-state">${resolved ? "Исправлено" : "Открыто"}</span><button class="plan-note-delete" type="button" data-delete-plan-note="${note.id}" aria-label="Удалить замечание" title="Удалить замечание">×</button></div><p>${escapeHtml(note.text)}</p><footer><small>${noteDate(note.createdAt)}</small><label class="note-resolved-toggle"><input type="checkbox" data-note-status="${note.id}" ${resolved ? "checked" : ""}> <span>Готово</span></label></footer></article>`;
         }).join("")
       : `<div class="notes-list-empty">По выбранному фильтру замечаний нет.</div>`;
-    const planNotes = notes.filter((note) => note.source !== "room-media" && note.coordinateSpace !== "legacy-normalized-v1"),
+    const planNotes = visiblePlanNotes("all"),
       count = planNotes.filter((note) => note.status !== "resolved").length,
       resolvedCount = planNotes.length - count;
     document.getElementById("plan-open-count").textContent = `${count} открытых`;
-    document.getElementById("plan-project-summary").textContent = `${Object.keys(roomNames).length} помещений · ${planNotes.length} замечаний на общем плане`;
+    const roomLabel = planRoomFilter === "all" ? `${Object.keys(planRoomNames).length} помещений`
+      : planRoomFilter === "unassigned" ? "Без комнаты" : planRoomNames[planRoomFilter];
+    document.getElementById("plan-project-summary").textContent = `${roomLabel} · ${planNotes.length} замечаний на общем плане`;
     document.querySelectorAll("[data-plan-count]").forEach((label) => {
       label.textContent = { all: planNotes.length, open: count, resolved: resolvedCount }[label.dataset.planCount];
     });
@@ -921,10 +951,39 @@
     renderPlanWorkspace();
   }));
   const planRoomSelect = document.getElementById("plan-room-filter");
+  function syncPlanRooms(rooms) {
+    planRoomNames = Object.fromEntries(rooms.map(({ id, name }) => [id, name]));
+    if (planRoomFilter !== "all" && planRoomFilter !== "unassigned" && !planRoomNames[planRoomFilter])
+      planRoomFilter = "all";
+    if (planRoomSelect) {
+      planRoomSelect.replaceChildren(new Option("Все помещения", "all"),
+        ...Object.entries(planRoomNames).map(([id, name]) => new Option(name, id)),
+        new Option("Без комнаты", "unassigned"));
+      planRoomSelect.value = planRoomFilter;
+    }
+    renderNotesList();
+  }
   if (planRoomSelect) {
-    Object.entries(roomNames).forEach(([id, name]) => planRoomSelect.add(new Option(name, id)));
     planRoomSelect.addEventListener("change", () => { planRoomFilter = planRoomSelect.value; renderNotesList(); });
   }
+  syncPlanRooms(window.HOUSE_ROOMS);
+  window.addEventListener("room-catalog-changed", (event) => {
+    const rooms = event.detail.rooms;
+    Object.keys(roomNames).forEach((key) => delete roomNames[key]);
+    Object.keys(roomCatalog).forEach((key) => delete roomCatalog[key]);
+    Object.assign(roomNames, Object.fromEntries(rooms.map(({ id, name }) => [id, name])));
+    Object.assign(roomCatalog, Object.fromEntries(rooms.map((room) => [room.id, room])));
+    roomData = Object.fromEntries(rooms.map(({ id }) => [id, roomData[id] || {}]));
+    if (roomMediaKey && !roomCatalog[roomMediaKey]) {
+      roomMediaDialog.close();
+      roomMediaKey = null;
+    }
+    syncPlanRooms(rooms);
+    renderPlan();
+    renderGalleries();
+    if (roomMediaKey) renderRoomMedia();
+    loadRooms();
+  });
   const activePlanBoard = document.getElementById("pin-board");
   activePlanBoard.addEventListener("click", (event) => {
     if (alignment?.phase === "image") {

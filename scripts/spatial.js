@@ -38,5 +38,40 @@
     if (!finitePoint(p) || !validCalibration({version: 1, matrix: m})) return null;
     return {x: m.a*p.x+m.b*p.z+m.c, z: m.d*p.x+m.e*p.z+m.f};
   }
-  window.RoomarkSpatial = {solveAffine, validCalibration, worldToImage, imageToWorld};
+  function roomContainsPoint(room, point, padding = 0.08) {
+    if (!finitePoint(point)) return false;
+    const floor = room.floorY ?? room.boundingBox?.min?.y;
+    const ceiling = room.ceilingY ?? room.boundingBox?.max?.y;
+    if (Number.isFinite(point.y) &&
+        ((Number.isFinite(floor) && point.y < floor - padding) ||
+         (Number.isFinite(ceiling) && point.y > ceiling + padding))) return false;
+    if (room.polygon?.length >= 3) {
+      let inside = false;
+      for (let i = 0, j = room.polygon.length - 1; i < room.polygon.length; j = i++) {
+        const [ax, az] = room.polygon[j], [bx, bz] = room.polygon[i];
+        const dx = bx - ax, dz = bz - az;
+        const t = Math.max(0, Math.min(1, ((point.x - ax) * dx + (point.z - az) * dz) / (dx * dx + dz * dz || 1)));
+        // Include pins placed on the room's walls and corners.
+        if (Math.hypot(point.x - ax - t * dx, point.z - az - t * dz) <= padding) return true;
+        if ((az > point.z) !== (bz > point.z) && point.x < (bx - ax) * (point.z - az) / (bz - az) + ax)
+          inside = !inside;
+      }
+      return inside;
+    }
+    const bounds = room.boundingBox;
+    return Boolean(bounds && point.x >= bounds.min.x - padding && point.x <= bounds.max.x + padding &&
+      point.z >= bounds.min.z - padding && point.z <= bounds.max.z + padding);
+  }
+  function noteRoomId(note, rooms = window.RoomarkRooms?.rooms || []) {
+    if (note.coordinateSpace !== "model-world-v1" || note.source === "room-media") return note.roomId || null;
+    const assigned = rooms.find((room) => room.id === note.roomId);
+    // Keep an explicit assignment at shared boundaries; moving into another room updates the result.
+    if (assigned && roomContainsPoint(assigned, note.position)) return assigned.id;
+    const containing = rooms.find((room) => roomContainsPoint(room, note.position, 0)) ||
+      rooms.find((room) => roomContainsPoint(room, note.position));
+    if (containing) return containing.id;
+    // Detected contours can exclude the wall surface where a pin was placed.
+    return note.roomId || null;
+  }
+  window.RoomarkSpatial = {solveAffine, validCalibration, worldToImage, imageToWorld, roomContainsPoint, noteRoomId};
 })();

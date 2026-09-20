@@ -1,6 +1,11 @@
 /* Product viewer UX layer. Kept separate from the Three.js shell. */
 :root { --viewer-left: 292px; --viewer-right: 344px; }
 
+.brand-mark .brand-logo-dark { display: none; }
+html.dark .brand-mark .brand-logo-light { display: none; }
+html.dark .brand-mark .brand-logo-dark { display: block; object-fit: contain; }
+html.dark .topbar .brand > .brand-name { color: #f4f0e7; }
+
 .topbar { grid-template-columns: minmax(360px, 1fr) auto minmax(360px, 1fr) !important; height: 84px !important; }
 .help-button { display:flex; align-items:center; gap:7px; padding:9px 10px; color:var(--text-secondary); background:transparent; border:0; border-radius:10px; cursor:pointer; font-size:13px; font-weight:650; }
 .help-button span { display:grid; width:20px; height:20px; border:1px solid currentColor; border-radius:50%; place-items:center; font-size:12px; }

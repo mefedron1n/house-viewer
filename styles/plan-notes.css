@@ -46,7 +46,9 @@ html.dark #panel-plan.mode-panel {
 .plan-canvas-column, .plan-notes-sidebar { min-width: 0; min-height: 0; border: 1px solid var(--plan-line); border-radius: 10px; background: var(--plan-surface); }
 .plan-canvas-column { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto auto; padding: 16px; }
 .plan-toolbar, .plan-canvas-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.plan-toolbar { padding-bottom: 16px; }
+.plan-toolbar { padding-bottom: 16px; flex-wrap: wrap; }
+.plan-room-filter { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; color: var(--plan-muted); font-size: 12px; }
+#plan-room-filter { min-width: 0; max-width: 240px; min-height: 40px; padding: 0 10px; border: 1px solid var(--plan-line); border-radius: 7px; background: var(--plan-surface); color: var(--plan-text); font: inherit; }
 .plan-status-filters { display: flex; gap: 4px; }
 .plan-status-filters button { min-height: 40px; padding: 0 14px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--plan-muted); font-size: 13px; cursor: pointer; }
 .plan-status-filters button.active { border-color: #c48f33; background: #f5a51c0b; color: var(--plan-text); }

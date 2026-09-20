@@ -5,15 +5,17 @@
       if (!response.ok) return;
       const { user } = await response.json();
       const actions = document.querySelector(".roomark-header-actions, .header-actions");
-      const themeToggle = actions.querySelector(".landing-theme-toggle");
+      const themeToggle = actions.querySelector(".landing-theme-switch");
+      const menuButton = actions.querySelector(".header-menu");
       window.createProfileMenu(actions, user, API);
       if (themeToggle) actions.append(themeToggle);
+      if (menuButton) actions.append(menuButton);
       document.querySelectorAll('a[href="./auth.html?mode=register"]').forEach((link) => {
         link.href = "./studio.html?view=new";
       });
       document.querySelectorAll(".header-login").forEach((link) => {
-        link.textContent = "Мои проекты";
-        link.href = "./studio.html?view=projects";
+        link.textContent = "Личный кабинет";
+        link.href = "./studio.html";
       });
     })
     .catch(() => {});

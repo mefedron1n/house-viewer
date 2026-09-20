@@ -42,7 +42,7 @@ test('3D notes stay in the plan list; projection requires matching saved or prev
     let notes=[{id:'world', coordinateSpace:'model-world-v1', position:{x:14,y:3,z:6}},
       {id:'done',status:'resolved',coordinateSpace:'model-world-v1',position:{x:15,z:5}}];`,ctx);
   vm.runInContext(source.slice(source.indexOf('  function currentCalibration()'),source.indexOf('  function updateAlignmentUI()')),ctx);
-  vm.runInContext(source.slice(source.indexOf('  function visiblePlanNotes()'),source.indexOf('  function renderPlanWorkspace()')),ctx);
+  vm.runInContext(source.slice(source.indexOf('  function visiblePlanNotes('),source.indexOf('  function renderPlanWorkspace()')),ctx);
   assert.equal(vm.runInContext('visiblePlanNotes().length',ctx),2);
   assert.equal(vm.runInContext('notePlanPoint(notes[0])',ctx),null);
   vm.runInContext(`floorplanCalibration={version:1,matrix:{a:10,b:0,c:10,d:0,e:-10,f:10},modelKey:'model-a'};
@@ -57,7 +57,7 @@ test('3D notes stay in the plan list; projection requires matching saved or prev
 test('image and pin share the same rectangle with letterboxing and zoom', () => {
   const ctx = vm.createContext({});
   vm.runInContext('let projectFloorplanAspect=2, planZoom=1;',ctx);
-  vm.runInContext(source.slice(source.indexOf('  function planImageRect('),source.indexOf('  function visiblePlanNotes()')),ctx);
+  vm.runInContext(source.slice(source.indexOf('  function planImageRect('),source.indexOf('  function visiblePlanNotes(')),ctx);
   for (const zoom of [.6,1,2.4]) {
     vm.runInContext(`planZoom=${zoom}`,ctx);
     const rect=vm.runInContext('planImageRect({clientWidth:800,clientHeight:600})',ctx);
